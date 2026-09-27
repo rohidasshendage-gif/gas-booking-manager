@@ -2,230 +2,169 @@
 <html lang="mr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ID Print Studio</title>
 <style>
-:root{--bg:#0b1020;--panel:#111827;--panel2:#182235;--line:#293548;--text:#f8fafc;--muted:#94a3b8;--accent:#3b82f6;--green:#10b981;--danger:#ef4444}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#080c18,#111827);color:var(--text);font-family:Inter,Arial,sans-serif}
-header{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#0b1020e8;position:sticky;top:0;z-index:20}
-.brand{font-size:20px;font-weight:800;letter-spacing:.2px}.brand span{color:#60a5fa}.sub{font-size:12px;color:var(--muted);margin-top:2px}
-.wrap{max-width:1280px;margin:auto;padding:16px}.toolbar,.panel{background:linear-gradient(180deg,#131d2d,#101827);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 35px #0004}
-.toolbar{padding:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}.panel{padding:14px}
-input,select{background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:9px;padding:10px;outline:none}input[type=file]{max-width:260px}
-button,.filebtn{border:0;border-radius:9px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;transition:.15s}
-button:hover,.filebtn:hover{filter:brightness(1.1);transform:translateY(-1px)}button.gray{background:#334155}button.green{background:var(--green)}button.red{background:var(--danger)}
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;margin-top:14px}.stage{min-height:540px;background:#080d16;border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column}
-.stagehead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.title{font-weight:800}.hint{font-size:12px;color:var(--muted)}
-.canvasbox{flex:1;min-height:460px;display:flex;align-items:center;justify-content:center;overflow:auto;background:repeating-conic-gradient(#0d1522 0 25%,#101a29 0 50%) 50%/24px 24px;border-radius:12px;padding:12px}
-.cropwrap{position:relative;display:inline-block;line-height:0}.cropwrap canvas{max-width:min(100%,850px);height:auto;display:block;cursor:crosshair;border-radius:5px}
-#sel{position:absolute;display:none;border:2px solid #22c55e;background:#22c55e2b;box-shadow:0 0 0 9999px #0005;pointer-events:none}
-.side{display:flex;flex-direction:column;gap:14px}.sectiontitle{font-weight:800;margin-bottom:10px}.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kv div{background:#0b1220;border:1px solid #253246;border-radius:10px;padding:10px}.num{font-size:18px;font-weight:800}.lbl{font-size:11px;color:var(--muted)}
-.tabs{display:flex;gap:6px}.tab{flex:1;background:#1e293b}.tab.active{background:var(--accent)}
-.preview{background:#080d16;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}.paper{width:100%;aspect-ratio:2/3;background:#fff;position:relative;border-radius:5px;overflow:hidden;margin:auto}
-.card{position:absolute;width:84.25%;height:35.42%;left:7.88%;object-fit:fill;background:#eee}.front{top:9.17%}.back{top:55.42%}
-.status{font-size:13px;color:#bfdbfe;background:#10233f;border:1px solid #1d4ed8;border-radius:10px;padding:10px;margin-top:10px}
-.small{font-size:12px;color:var(--muted);line-height:1.5}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.empty{color:#64748b;text-align:center;padding:30px}.hidden{display:none!important}
-footer{padding:16px;text-align:center;color:#64748b;font-size:11px}
-@media(max-width:900px){.workspace{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.canvasbox{min-height:390px}}
-@media(max-width:600px){header{height:auto;padding:12px}.workspace{margin-top:10px}.side{display:flex}.stage{min-height:440px}.canvasbox{min-height:330px;padding:6px}.toolbar{padding:9px}.toolbar>*{width:100%}.toolbar .row{width:100%}input[type=file]{max-width:none}}
+:root{--bg:#07111f;--card:#101d30;--line:#263750;--blue:#2878ff;--text:#f4f7fb;--muted:#9eacc0}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#050b14,#0c1830);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#07111fee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:15px}
+.head{max-width:1050px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}.logo{font-size:23px;font-weight:800}.logo b{color:#4b8cff}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+button,.fileBtn{border:0;border-radius:12px;padding:12px 16px;background:var(--blue);color:white;font-weight:750;font-size:15px;cursor:pointer}.ghost{background:#17253a;border:1px solid var(--line)}
+main{max-width:1050px;margin:18px auto;padding:0 14px}.grid{display:grid;grid-template-columns:340px 1fr;gap:16px}.panel{background:#0d1a2b;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}
+h2{font-size:17px;margin:0 0 12px}.row{display:flex;gap:9px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}
+input[type=password],select{width:100%;background:#07111f;color:white;border:1px solid var(--line);border-radius:11px;padding:12px;font-size:15px;margin:8px 0}
+.fileBtn{display:block;text-align:center;background:#153d7e;margin-bottom:9px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
+.status{margin-top:10px;padding:10px;border-radius:10px;background:#091424;border:1px solid var(--line);font-size:13px}
+.workspace{min-height:430px;background:#070e18;border:1px dashed #36506f;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+#sourceCanvas{max-width:100%;max-height:65vh;touch-action:none;display:block}.empty{color:#718198;text-align:center;padding:50px}
+.tabs{display:flex;gap:8px;margin-bottom:10px}.tab{flex:1}.active{background:#276eff}
+.crops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.cropCard{background:#081321;border:1px solid var(--line);border-radius:13px;padding:10px}.cropCard canvas{width:100%;background:white;display:block;aspect-ratio:85.6/53.98;object-fit:contain}
+#printSheet{display:none}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.workspace{min-height:330px}.crops{grid-template-columns:1fr}}
 @media print{
- @page{size:4in 6in;margin:0}
- body>*{display:none!important}#printArea{display:block!important;width:4in;height:6in;background:#fff;position:relative}
- #printArea img{position:absolute;width:3.3701in;height:2.1252in;object-fit:fill;left:.315in}
- #printFront{top:.55in}#printBack{top:3.325in}
+ body{background:white!important;color:#000}.noPrint{display:none!important}#printSheet{display:block!important;width:6in;height:4in;margin:0;padding:0;position:relative;background:white}
+ .printCard{position:absolute;width:3.3701in;height:2.1252in;overflow:hidden}.printCard img{width:100%;height:100%;object-fit:fill;display:block}
+ .p1{left:.08in;top:.08in}.p2{left:2.55in;top:.08in}.p3{left:.08in;top:1.77in}.p4{left:2.55in;top:1.77in}
+ @page{size:6in 4in;margin:0}
 }
-#printArea{display:none}
 </style>
 </head>
 <body>
-<header>
-  <div><div class="brand">ID <span>PRINT STUDIO</span></div><div class="sub">PDF • Crop • Front / Back • 4×6 Print • Secure PDF</div></div>
-  <button class="gray" id="newBtn">＋ New Job</button>
-</header>
+<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • CROP • FRONT / BACK • 4×6 PRINT</div></div><button class="ghost" id="newBtn">＋ New Job</button></div></header>
 
-<div class="wrap">
-  <div class="toolbar">
-    <label class="filebtn">📄 Choose PDF <input id="pdfFile" type="file" accept="application/pdf" hidden></label>
-    <input id="pwd" type="password" placeholder="🔐 Password (if any)">
-    <button id="openBtn">Open PDF</button>
-    <div class="row">
-      <button class="gray" id="prevBtn">‹</button>
-      <select id="pageNo" disabled><option>Page</option></select>
-      <button class="gray" id="nextBtn">›</button>
-    </div>
-    <button class="gray" id="fitBtn">Fit</button>
-    <button class="gray" id="zoomOut">−</button>
-    <span id="zoomText" class="small">100%</span>
-    <button class="gray" id="zoomIn">＋</button>
-  </div>
+<main class="noPrint">
+<div class="grid">
+<section class="panel">
+<h2>1. Document</h2>
+<label class="fileBtn" for="file">📄 Choose PDF / 🖼️ Image</label>
+<input id="file" type="file" accept=".pdf,application/pdf,image/*" hidden>
+<input id="password" type="password" placeholder="PDF password (जर असेल तर)">
+<div class="row"><button id="openBtn">Open</button><button class="ghost" id="prev">‹</button><button class="ghost" id="next">›</button></div>
+<select id="page" disabled><option>Page</option></select>
+<div class="status" id="status">File निवडा.</div>
+<div class="note">Password PDF साठी password box मध्ये password टाका. PDF browser मध्येच process होतो.</div>
+<hr style="border-color:#1d2b40;margin:16px 0">
+<h2>2. Crop</h2>
+<div class="tabs"><button class="tab active" data-side="front">FRONT</button><button class="tab ghost" data-side="back">BACK</button></div>
+<button class="ghost" id="fit" style="width:100%">↔ Fit to screen</button>
+<div class="hint" style="margin-top:9px">Image वर बोट/माऊस drag करून crop area निवडा. पुन्हा drag केल्यास selection बदलेल.</div>
+<hr style="border-color:#1d2b40;margin:16px 0">
+<h2>3. Print</h2>
+<button id="printBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
+<div class="hint" style="margin-top:8px">Print dialog मध्ये Paper 4×6 inch आणि Scale 100% / Actual size निवडा.</div>
+</section>
 
-  <div id="status" class="status">PDF निवडा → Open PDF दाबा. Password असेल तर वरच्या box मध्ये टाका.</div>
+<section class="panel">
+<h2>Crop Workspace</h2>
+<div class="workspace" id="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.</div><canvas id="sourceCanvas"></canvas></div>
+<div class="crops">
+<div class="cropCard"><div class="hint">FRONT • 85.60 × 53.98 mm</div><canvas id="frontPreview" width="856" height="540"></canvas></div>
+<div class="cropCard"><div class="hint">BACK • 85.60 × 53.98 mm</div><canvas id="backPreview" width="856" height="540"></canvas></div>
+</div>
+</section>
+</div>
+</main>
 
-  <div class="workspace">
-    <section class="stage">
-      <div class="stagehead">
-        <div><div class="title" id="modeTitle">Crop Workspace</div><div class="hint">PDF मधून फक्त आवश्यक area select करा</div></div>
-        <div class="tabs"><button class="tab active" id="frontTab">FRONT</button><button class="tab" id="backTab">BACK</button></div>
-      </div>
-      <div class="canvasbox">
-        <div id="empty" class="empty">PDF उघडल्यानंतर page इथे दिसेल.</div>
-        <div class="cropwrap hidden" id="cropWrap"><canvas id="canvas"></canvas><div id="sel"></div></div>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="green" id="cropBtn">✂ Crop & Save</button>
-        <button class="gray" id="clearBtn">Clear Selection</button>
-        <span class="small" id="selectionInfo">No selection</span>
-      </div>
-    </section>
-
-    <aside class="side">
-      <div class="panel">
-        <div class="sectiontitle">🪪 Card Preview</div>
-        <div class="preview"><canvas id="frontPreview" width="342" height="216" style="width:100%;aspect-ratio:1.583;object-fit:fill"></canvas><div class="small">Front • 85.60 × 53.98 mm</div></div>
-        <div style="height:8px"></div>
-        <div class="preview"><canvas id="backPreview" width="342" height="216" style="width:100%;aspect-ratio:1.583;object-fit:fill"></canvas><div class="small">Back • 85.60 × 53.98 mm</div></div>
-      </div>
-
-      <div class="panel">
-        <div class="sectiontitle">📐 4×6 Print</div>
-        <div class="kv">
-          <div><div class="num">4 × 6"</div><div class="lbl">Paper</div></div>
-          <div><div class="num">85.60×53.98</div><div class="lbl">Card mm</div></div>
-        </div>
-        <div style="height:10px"></div>
-        <button class="green" style="width:100%" id="printBtn">🖨 Print 4×6</button>
-        <p class="small">Print dialog मध्ये paper size 4×6 inch निवडा आणि Scale = 100% / Actual Size ठेवा.</p>
-      </div>
-
-      <div class="panel">
-        <div class="sectiontitle">⚙ Job Info</div>
-        <div class="small" id="jobInfo">No PDF loaded</div>
-      </div>
-    </aside>
-  </div>
+<div id="printSheet">
+ <div class="printCard p1"><img id="pi1"></div><div class="printCard p2"><img id="pi2"></div>
+ <div class="printCard p3"><img id="pi3"></div><div class="printCard p4"><img id="pi4"></div>
 </div>
 
-<footer>Local browser tool • PDF data is processed in your browser</footer>
-
-<div id="printArea">
-  <img id="printFront"><img id="printBack">
-</div>
-
-<script type="module">
-import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/pdf.mjs";
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const $=id=>document.getElementById(id);
-let pdf=null,page=1,scale=1.2,selection=null,start=null,side="front",frontData=null,backData=null;
+let file=null,pdf=null,pageNum=1,side="front",img=null,selection=null,drag=null;
+const src=$("sourceCanvas"),ctx=src.getContext("2d");
+const fp=$("frontPreview"),bp=$("backPreview");
 
-function setStatus(x){$("status").textContent=x}
-function setTab(){
- $("frontTab").classList.toggle("active",side==="front");
- $("backTab").classList.toggle("active",side==="back");
- $("modeTitle").textContent=(side==="front"?"Front":"Back")+" Crop Workspace";
-}
-function fitScale(){
- if(!pdf)return 1.2;
- const box=$("canvas").parentElement.getBoundingClientRect();
- return Math.max(.5,Math.min(2.2,(box.width-25)/900));
-}
-async function render(){
- if(!pdf)return;
- const pg=await pdf.getPage(page),vp=pg.getViewport({scale});
- const c=$("canvas"),cx=c.getContext("2d");
- c.width=vp.width;c.height=vp.height;
- await pg.render({canvasContext:cx,viewport:vp}).promise;
- $("empty").classList.add("hidden");$("cropWrap").classList.remove("hidden");
- selection=null;$("sel").style.display="none";$("selectionInfo").textContent="No selection";
- $("zoomText").textContent=Math.round(scale*100)+"%";
- $("pageNo").value=String(page);
-}
-function point(e){
- const r=$("canvas").getBoundingClientRect(),c=$("canvas");
- return {x:Math.max(0,Math.min(c.width,(e.clientX-r.left)*c.width/r.width)),
-         y:Math.max(0,Math.min(c.height,(e.clientY-r.top)*c.height/r.height))};
-}
-$("canvas").addEventListener("pointerdown",e=>{if(!pdf)return;start=point(e);$("canvas").setPointerCapture(e.pointerId)});
-$("canvas").addEventListener("pointermove",e=>{
- if(!start)return;
- const p=point(e),x=Math.min(start.x,p.x),y=Math.min(start.y,p.y),w=Math.abs(p.x-start.x),h=Math.abs(p.y-start.y);
- selection={x,y,w,h};
- const r=$("canvas").getBoundingClientRect(),sx=r.width/$("canvas").width,sy=r.height/$("canvas").height;
- Object.assign($("sel").style,{display:"block",left:x*sx+"px",top:y*sy+"px",width:w*sx+"px",height:h*sy+"px"});
- $("selectionInfo").textContent=Math.round(w)+" × "+Math.round(h)+" px";
-});
-$("canvas").addEventListener("pointerup",()=>start=null);
-
-function crop(){
- if(!selection||selection.w<8||selection.h<8){alert("आधी PDF वर crop area select करा.");return null}
- const c=document.createElement("canvas");c.width=Math.round(selection.w);c.height=Math.round(selection.h);
- c.getContext("2d").drawImage($("canvas"),selection.x,selection.y,selection.w,selection.h,0,0,c.width,c.height);
- return c.toDataURL("image/png");
-}
-function preview(id,data){
- const c=$(id),x=c.getContext("2d");x.clearRect(0,0,c.width,c.height);
- if(!data){x.fillStyle="#e5e7eb";x.fillRect(0,0,c.width,c.height);return}
- const im=new Image();im.onload=()=>x.drawImage(im,0,0,c.width,c.height);im.src=data;
-}
-
-$("frontTab").onclick=()=>{side="front";setTab()};
-$("backTab").onclick=()=>{side="back";setTab()};
-$("cropBtn").onclick=()=>{
- const d=crop();if(!d)return;
- if(side==="front")frontData=d;else backData=d;
- preview(side==="front"?"frontPreview":"backPreview",d);
- setStatus((side==="front"?"Front":"Back")+" crop saved successfully.");
-};
-$("clearBtn").onclick=()=>{selection=null;$("sel").style.display="none";$("selectionInfo").textContent="No selection"};
-$("fitBtn").onclick=()=>{scale=fitScale();render()};
-$("zoomIn").onclick=()=>{scale=Math.min(4,scale+.15);render()};
-$("zoomOut").onclick=()=>{scale=Math.max(.4,scale-.15);render()};
-$("prevBtn").onclick=()=>{if(pdf&&page>1){page--;render()}};
-$("nextBtn").onclick=()=>{if(pdf&&page<pdf.numPages){page++;render()}};
-$("pageNo").onchange=()=>{page=Number($("pageNo").value);render()};
-
-$("openBtn").onclick=async()=>{
- const f=$("pdfFile").files[0];
- if(!f){alert("PDF निवडा.");return}
- $("openBtn").disabled=true;
- setStatus("PDF loading...");
- try{
-  const data=new Uint8Array(await f.arrayBuffer());
-  const initialPwd=$("pwd").value.trim();
-  const task=pdfjsLib.getDocument({data,disableWorker:true,enableScripting:false,password:initialPwd||undefined});
-  let attempts=0;
-  task.onPassword=(setPassword,reason)=>{
-   attempts++;
-   const field=$("pwd");
-   let pass=field.value.trim();
-   if(reason===2 || !pass){
-    pass=prompt(reason===2?"❌ Password चुकीचा आहे. पुन्हा password टाका:":"🔐 या PDF ला password आहे. Password टाका:");
-    if(pass===null || !String(pass).trim()){setStatus("🔐 Password आवश्यक आहे.");return}
-    field.value=String(pass); pass=String(pass).trim();
-   }
-   if(attempts<=6)setPassword(pass); else setStatus("Password attempts संपले. Open PDF पुन्हा करा.");
-  };
-  pdf=await task.promise;
-  page=1;scale=fitScale();
-  $("pageNo").disabled=false;$("pageNo").innerHTML="";
-  for(let i=1;i<=pdf.numPages;i++)$("pageNo").add(new Option(i,i));
-  $("jobInfo").innerHTML="<b>"+f.name+"</b><br>"+pdf.numPages+" pages";
-  await render();
-  setStatus("✅ PDF ready. FRONT / BACK निवडा आणि area crop करा.");
- }catch(e){
-  console.error(e);
-  const msg=(e&&e.name==="PasswordException")?"🔐 PDF password स्वीकारला गेला नाही. Open PDF पुन्हा करून योग्य password टाका.":"⚠️ PDF उघडता आला नाही. PDF format/encryption browser reader ला support नसू शकते.";
-  setStatus(msg); alert(msg);
- }finally{$("openBtn").disabled=false}
-};
-
-$("printBtn").onclick=()=>{
- if(!frontData&&!backData){alert("किमान Front किंवा Back crop करा.");return}
- $("printFront").src=frontData||"";$("printBack").src=backData||"";
- window.print();
-};
+$("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"File निवडा.";};
 $("newBtn").onclick=()=>location.reload();
-preview("frontPreview",null);preview("backPreview",null);
+
+async function openFile(){
+ if(!file){alert("पहिले PDF किंवा Image निवडा.");return}
+ try{
+  if(file.type==="application/pdf" || file.name.toLowerCase().endsWith(".pdf")){
+   $("status").textContent="PDF loading...";
+   const data=new Uint8Array(await file.arrayBuffer());
+   const opts={data};
+   if($("password").value) opts.password=$("password").value;
+   opts.passwordPrompt=()=>new Promise((resolve,reject)=>{
+      const p=prompt("PDF password टाका:");
+      if(p===null) reject(new Error("Password cancelled")); else resolve(p);
+   });
+   pdf=await pdfjsLib.getDocument(opts).promise;
+   $("page").innerHTML="";
+   for(let i=1;i<=pdf.numPages;i++){let o=document.createElement("option");o.value=i;o.textContent="Page "+i;$("page").appendChild(o)}
+   $("page").disabled=false;pageNum=1;$("page").value=1;
+   await renderPage();
+  }else if(file.type.startsWith("image/")){
+   pdf=null;$("page").disabled=true;
+   img=new Image();img.onload=()=>{drawImage();$("status").textContent="Image loaded.";};img.src=URL.createObjectURL(file);
+  }else throw new Error("Unsupported file");
+ }catch(e){console.error(e);alert("PDF उघडता आला नाही. Password/format तपासा.");$("status").textContent="Open failed";}
+}
+async function renderPage(){
+ const p=await pdf.getPage(pageNum);
+ const base=p.getViewport({scale:1});
+ const max=1800,scale=Math.min(2.2,max/Math.max(base.width,base.height));
+ const v=p.getViewport({scale});
+ src.width=Math.ceil(v.width);src.height=Math.ceil(v.height);
+ await p.render({canvasContext:ctx,viewport:v}).promise;
+ img=null;selection=null;$("empty").style.display="none";$("status").textContent=`PDF Page ${pageNum} / ${pdf.numPages}`;
+}
+function drawImage(){
+ const max=1800,s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+ src.width=Math.ceil(img.naturalWidth*s);src.height=Math.ceil(img.naturalHeight*s);
+ ctx.drawImage(img,0,0,src.width,src.height);selection=null;$("empty").style.display="none";
+}
+$("openBtn").onclick=openFile;
+$("page").onchange=async e=>{pageNum=+e.target.value;await renderPage()};
+$("prev").onclick=async()=>{if(pdf&&pageNum>1){pageNum--; $("page").value=pageNum; await renderPage()}};
+$("next").onclick=async()=>{if(pdf&&pageNum<pdf.numPages){pageNum++;$("page").value=pageNum;await renderPage()}};
+
+function pos(e){const r=src.getBoundingClientRect();return{x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height}}
+src.addEventListener("pointerdown",e=>{if(!src.width)return;src.setPointerCapture(e.pointerId);let p=pos(e);drag={x:p.x,y:p.y};selection={x:p.x,y:p.y,w:0,h:0};paint()});
+src.addEventListener("pointermove",e=>{if(!drag)return;let p=pos(e);selection={x:Math.min(drag.x,p.x),y:Math.min(drag.y,p.y),w:Math.abs(p.x-drag.x),h:Math.abs(p.y-drag.y)};paint()});
+src.addEventListener("pointerup",()=>{drag=null;updatePreview()});
+
+function paint(){
+ ctx.save(); if(pdf||img){ // redraw base
+  if(img) drawBaseOnly(); // PDF canvas already base; selection overlay is enough
+ }
+ if(selection&&selection.w>2&&selection.h>2){
+  ctx.fillStyle="rgba(0,0,0,.45)";ctx.fillRect(0,0,src.width,src.height);
+  ctx.clearRect(selection.x,selection.y,selection.w,selection.h);
+  ctx.strokeStyle="#39a0ff";ctx.lineWidth=Math.max(3,src.width/500);ctx.strokeRect(selection.x,selection.y,selection.w,selection.h);
+ }
+ ctx.restore();
+}
+function drawBaseOnly(){ctx.clearRect(0,0,src.width,src.height);let s=src.width/img.naturalWidth;ctx.drawImage(img,0,0,img.naturalWidth*s,img.naturalHeight*s)}
+// For PDF, overlay must not permanently destroy the rendered page. Keep a hidden copy.
+let baseData=null;
+async function refreshBaseData(){baseData=ctx.getImageData(0,0,src.width,src.height)}
+const oldRender=renderPage;
+renderPage=async function(){await oldRender();await refreshBaseData()};
+function restoreBase(){if(baseData)ctx.putImageData(baseData,0,0);else if(img)drawBaseOnly()}
+const oldPaint=paint;
+paint=function(){restoreBase();if(selection&&selection.w>2&&selection.h>2){ctx.save();ctx.fillStyle="rgba(0,0,0,.45)";ctx.fillRect(0,0,src.width,src.height);ctx.clearRect(selection.x,selection.y,selection.w,selection.h);ctx.strokeStyle="#39a0ff";ctx.lineWidth=Math.max(3,src.width/500);ctx.strokeRect(selection.x,selection.y,selection.w,selection.h);ctx.restore()}};
+function updatePreview(){
+ if(!selection||selection.w<5||selection.h<5)return;
+ restoreBase();
+ const out=side==="front"?fp:bp,oc=out.getContext("2d");oc.clearRect(0,0,out.width,out.height);
+ oc.fillStyle="white";oc.fillRect(0,0,out.width,out.height);
+ oc.drawImage(src,selection.x,selection.y,selection.w,selection.h,0,0,out.width,out.height);
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{side=b.dataset.side;document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")});
+$("fit").onclick=()=>{src.style.maxWidth="100%";src.style.maxHeight="65vh"};
+$("printBtn").onclick=()=>{
+ if(!fp.toDataURL() && !bp.toDataURL()){alert("आधी crop करा.");return}
+ const blank="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+ const f=fp.toDataURL("image/jpeg",.95),b=bp.toDataURL("image/jpeg",.95);
+ ["pi1","pi3"].forEach(id=>$(id).src=f);["pi2","pi4"].forEach(id=>$(id).src=b);
+ setTimeout(()=>window.print(),150);
+};
 </script>
-</body>
-</html>
+</body></html>
