@@ -157,101 +157,118 @@ function autoCut(){
  restore();
 
  /*
-  * AUTO CARD MODE
-  * The supplied Aadhaar sheet is a 2x2 sheet. We use the lower row
-  * as the two cards, then look for the inner rectangular card edges.
-  * The guide is a UI-only rectangle; it is never copied into the print image.
+  * V7: Find the OUTER CARD RECTANGLE, not text/QR lines.
+  * The supplied sheet has 2 cards in the lower row.
+  * We score only long continuous edges. Short text lines are ignored.
   */
  const w=src.width,h=src.height,data=baseData.data;
- const col=new Float32Array(w), row=new Float32Array(h);
+ const gray=new Uint8Array(w*h);
 
- // Edge energy (dark/light transition) rather than "all dark pixels".
- for(let y=1;y<h-1;y++){
-   for(let x=1;x<w-1;x++){
+ for(let y=0;y<h;y++){
+   for(let x=0;x<w;x++){
      const i=(y*w+x)*4;
-     const lum=(data[i]+data[i+1]+data[i+2])/3;
-     const ir=(i+4), il=(i-4), iu=i-w*4, id=i+w*4;
-     const lr=(data[ir]+data[ir+1]+data[ir+2])/3;
-     const ll=(data[il]+data[il+1]+data[il+2])/3;
-     const lu=(data[iu]+data[iu+1]+data[iu+2])/3;
-     const ld=(data[id]+data[id+1]+data[id+2])/3;
-     col[x]+=Math.abs(lr-ll);
-     row[y]+=Math.abs(ld-lu);
+     gray[y*w+x]=Math.round((data[i]*.299+data[i+1]*.587+data[i+2]*.114));
    }
  }
 
- function peakNear(a, center, span){
-   let best=center,score=-1;
-   const lo=Math.max(2,Math.floor(center-span)), hi=Math.min(a.length-3,Math.ceil(center+span));
-   for(let i=lo;i<=hi;i++){
-     if(a[i]>score){score=a[i];best=i}
+ function hScore(y,x0,x1){
+   let hits=0,total=0,run=0,bestRun=0;
+   for(let x=x0+Math.round((x1-x0)*.08);x<x1-Math.round((x1-x0)*.08);x++){
+     const a=gray[y*w+x], b=gray[(Math.max(0,y-2))*w+x], c=gray[(Math.min(h-1,y+2))*w+x];
+     const g=Math.max(Math.abs(a-b),Math.abs(c-a));
+     total++;
+     if(g>28){hits++;run++;bestRun=Math.max(bestRun,run)}else run=0;
    }
-   return best;
+   // Long continuous lines get much more weight than text.
+   return hits/Math.max(1,total) + .8*(bestRun/Math.max(1,total));
  }
 
- // First find the 2x2 cell separators.
- const cx=peakNear(col,w/2,w*.14);
- const cy=peakNear(row,h*.55,h*.25);
-
- // Each lower cell. Do NOT use the page edge as the card edge.
- let lx0=Math.floor(w*.02), lx1=cx-Math.floor(w*.01);
- let rx0=cx+Math.floor(w*.01), rx1=Math.floor(w*.98);
- let ty=cy+Math.floor(h*.015), by=Math.floor(h*.98);
-
- // Search inside each lower cell for a rectangular border.
- function borderIn(x0,x1,y0,y1){
-   const spanX=x1-x0, spanY=y1-y0;
-   const vx=[],vy=[];
-   const nX=60,nY=60;
-
-   // score each candidate line by edge energy in the central 70% of the other axis
-   function vScore(x){
-     let sum=0, a=Math.floor(y0+spanY*.08), b=Math.floor(y1-spanY*.08);
-     for(let y=a;y<b;y++) sum+=Math.min(255,col[x]/Math.max(1,h));
-     return sum;
+ function vScore(x,y0,y1){
+   let hits=0,total=0,run=0,bestRun=0;
+   for(let y=y0+Math.round((y1-y0)*.08);y<y1-Math.round((y1-y0)*.08);y++){
+     const a=gray[y*w+x], b=gray[y*w+Math.max(0,x-2)], c=gray[y*w+Math.min(w-1,x+2)];
+     const g=Math.max(Math.abs(a-b),Math.abs(c-a));
+     total++;
+     if(g>28){hits++;run++;bestRun=Math.max(bestRun,run)}else run=0;
    }
-   function hScore(y){
-     let sum=0, a=Math.floor(x0+spanX*.08), b=Math.floor(x1-spanX*.08);
-     for(let x=a;x<b;x++) sum+=Math.min(255,row[y]/Math.max(1,w));
-     return sum;
-   }
-
-   let vl=-1,vr=-1,ht=-1,hb=-1,svl=-1,svr=-1,sht=-1,shb=-1;
-   for(let k=0;k<=nX;k++){
-     const x=Math.round(x0+spanX*k/nX), sc=vScore(x);
-     if(k<25 && sc>svl){svl=sc;vl=x}
-     if(k>35 && sc>svr){svr=sc;vr=x}
-   }
-   for(let k=0;k<=nY;k++){
-     const y=Math.round(y0+spanY*k/nY), sc=hScore(y);
-     if(k<35 && sc>sht){sht=sc;ht=y}
-     if(k>55 && sc>shb){shb=sc;hb=y}
-   }
-
-   // Conservative inset: keep content inside the detected guide,
-   // while avoiding external cut marks.
-   const ix=Math.max(2,Math.round(spanX*.008));
-   const iy=Math.max(2,Math.round(spanY*.008));
-   if(vl<0)vl=x0+ix; if(vr<0)vr=x1-ix;
-   if(ht<0)ht=y0+iy; if(hb<0)hb=y1-iy;
-
-   if(vr-vl<spanX*.55){vl=x0+ix;vr=x1-ix}
-   if(hb-ht<spanY*.55){ht=y0+iy;hb=y1-iy}
-
-   return {x:vl+ix,y:ht+iy,w:Math.max(20,vr-vl-2*ix),h:Math.max(20,hb-ht-2*iy)}
+   return hits/Math.max(1,total) + .8*(bestRun/Math.max(1,total));
  }
 
- const front=borderIn(lx0,lx1,ty,by);
- const back=borderIn(rx0,rx1,ty,by);
+ // Locate the lower row separator using a long horizontal line.
+ let cy=Math.round(h*.52),best=-1;
+ for(let y=Math.round(h*.35);y<=Math.round(h*.72);y++){
+   const sc=hScore(y,Math.round(w*.06),Math.round(w*.94));
+   if(sc>best){best=sc;cy=y}
+ }
+
+ const leftX0=Math.round(w*.02), leftX1=Math.round(w*.495);
+ const rightX0=Math.round(w*.505), rightX1=Math.round(w*.98);
+
+ function findCard(x0,x1){
+   const y0=cy+Math.round(h*.01), y1=Math.round(h*.98);
+   const cellW=x1-x0, cellH=y1-y0;
+   const ratio=85.60/53.98;
+
+   // Find long top/bottom borders first.
+   let top=y0,bottom=y1,st=-1,sb=-1;
+   const topLo=y0, topHi=Math.round(y0+cellH*.38);
+   const botLo=Math.round(y0+cellH*.55), botHi=y1;
+   for(let y=topLo;y<=topHi;y++){
+     const sc=hScore(y,x0,x1);
+     if(sc>st){st=sc;top=y}
+   }
+   for(let y=botLo;y<=botHi;y++){
+     const sc=hScore(y,x0,x1);
+     if(sc>sb){sb=sc;bottom=y}
+   }
+
+   // Force a realistic card ratio while preserving the detected top.
+   let height=bottom-top;
+   let width=height*ratio;
+   if(width>cellW*.96){
+     width=cellW*.96;height=width/ratio;
+     bottom=Math.min(y1,top+height);
+   }
+
+   // Center inside each lower cell; then search for strong vertical borders.
+   let center=(x0+x1)/2;
+   let L=center-width/2, R=center+width/2;
+
+   // Search left/right edge around expected locations.
+   let bestL=-1,bL=-1,bestR=-1,bR=-1;
+   for(let x=Math.max(x0+2,Math.round(L-cellW*.12));x<=Math.min(x1-2,Math.round(L+cellW*.12));x++){
+     const sc=vScore(x,top,bottom);
+     if(sc>bL){bL=sc;bestL=x}
+   }
+   for(let x=Math.max(x0+2,Math.round(R-cellW*.12));x<=Math.min(x1-2,Math.round(R+cellW*.12));x++){
+     const sc=vScore(x,top,bottom);
+     if(sc>bR){bR=sc;bestR=x}
+   }
+
+   if(bestL>0 && bestR>bestL && (bestR-bestL)>cellW*.55){
+     L=bestL;R=bestR;
+   }
+
+   // IMPORTANT: crop just INSIDE the physical border.
+   const inset=Math.max(2,Math.round(Math.min(R-L,bottom-top)*.012));
+   return {
+     x:Math.round(L+inset),
+     y:Math.round(top+inset),
+     w:Math.round(Math.max(20,R-L-2*inset)),
+     h:Math.round(Math.max(20,bottom-top-2*inset))
+   };
+ }
+
+ const front=findCard(leftX0,leftX1);
+ const back=findCard(rightX0,rightX1);
 
  window.frontRect=front;window.backRect=back;
- updatePreview("front",front,"AUTO • Border Inside • FRONT");
- updatePreview("back",back,"AUTO • Border Inside • BACK");
-
+ updatePreview("front",front,"AUTO • OUTER BORDER INSIDE • FRONT");
+ updatePreview("back",back,"AUTO • OUTER BORDER INSIDE • BACK");
  selection=null;restore();
- $("status").textContent="✅ AUTO CUT: borderच्या आत crop + screen-only guide. Guide print/PVC वर येणार नाही.";
-}
 
+ $("status").textContent="✅ पूर्ण card borderच्या आत घेतला आहे. Text/QR lines मुळे crop बदलणार नाही.";
+}
 $("autoBtn").onclick=autoCut;
 
 $("printBtn").onclick=()=>{
