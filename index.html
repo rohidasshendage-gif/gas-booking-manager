@@ -33,7 +33,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 </style>
 </head>
 <body>
-<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • AUTO CUT • FRONT / BACK • 4×6 PRINT</div></div><button class="ghost" id="newBtn">＋ New Job</button></div></header>
+<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • AUTO CUT • FRONT / BACK • CARD GUIDE • 4×6 PRINT</div></div><button class="ghost" id="newBtn">＋ New Job</button></div></header>
 
 <main class="noPrint">
 <div class="grid">
@@ -42,7 +42,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <label class="fileBtn" for="file">📄 Choose PDF / 🖼️ Image</label>
 <input id="file" type="file" accept=".pdf,application/pdf,image/*" hidden>
 <input id="password" type="password" placeholder="PDF password (जर असेल तर)">
-<div class="row"><button id="openBtn">Open</button><button class="ghost" id="autoBtn">✂️ Auto Cut</button></div>
+<div class="row"><button id="openBtn">Open</button><button class="ghost" id="autoBtn">✂️ Auto Cut + Guide</button></div>
 <div class="row" style="margin-top:8px"><button class="ghost" id="prev">‹</button><button class="ghost" id="next">›</button></div>
 <select id="page" disabled><option>Page</option></select>
 <div class="status" id="status">PDF / Image निवडा.</div>
@@ -50,7 +50,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>2. Crop</h2>
 <div class="tabs"><button class="active tab" data-side="front">FRONT</button><button class="ghost tab" data-side="back">BACK</button></div>
-<div class="hint" style="margin-top:9px">Auto Cut बरोबर नसेल तर बोटाने drag करून manual crop करता येईल.</div>
+<div class="hint" style="margin-top:9px">Card च्या border च्या आत crop होईल. निळी guide line फक्त screen वर आहे; print/PVC वर छापली जाणार नाही.</div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
 <button id="printBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
@@ -156,71 +156,101 @@ function autoCut(){
  if(!baseData){alert("आधी PDF / Image उघडा.");return}
  restore();
 
- // Aadhaar sheet in the supplied layout is a 2 x 2 grid.
- // The required cards are the TWO BOTTOM boxes.
- // Instead of guessing a horizontal separator, calculate the card height
- // from the real ID-card ratio 85.60:53.98 and anchor it to the bottom row.
+ /*
+  * AUTO CARD MODE
+  * The supplied Aadhaar sheet is a 2x2 sheet. We use the lower row
+  * as the two cards, then look for the inner rectangular card edges.
+  * The guide is a UI-only rectangle; it is never copied into the print image.
+  */
  const w=src.width,h=src.height,data=baseData.data;
  const col=new Float32Array(w), row=new Float32Array(h);
 
- for(let y=0;y<h;y++){
-   for(let x=0;x<w;x++){
+ // Edge energy (dark/light transition) rather than "all dark pixels".
+ for(let y=1;y<h-1;y++){
+   for(let x=1;x<w-1;x++){
      const i=(y*w+x)*4;
-     const g=(data[i]+data[i+1]+data[i+2])/3;
-     if(g<125){col[x]++;row[y]++}
+     const lum=(data[i]+data[i+1]+data[i+2])/3;
+     const ir=(i+4), il=(i-4), iu=i-w*4, id=i+w*4;
+     const lr=(data[ir]+data[ir+1]+data[ir+2])/3;
+     const ll=(data[il]+data[il+1]+data[il+2])/3;
+     const lu=(data[iu]+data[iu+1]+data[iu+2])/3;
+     const ld=(data[id]+data[id+1]+data[id+2])/3;
+     col[x]+=Math.abs(lr-ll);
+     row[y]+=Math.abs(ld-lu);
    }
  }
 
- function lineNear(a, from, to){
-   let best=-1,score=-1;
-   const lo=Math.max(0,Math.floor(a.length*from));
-   const hi=Math.min(a.length-1,Math.floor(a.length*to));
+ function peakNear(a, center, span){
+   let best=center,score=-1;
+   const lo=Math.max(2,Math.floor(center-span)), hi=Math.min(a.length-3,Math.ceil(center+span));
    for(let i=lo;i<=hi;i++){
      if(a[i]>score){score=a[i];best=i}
    }
    return best;
  }
 
- // Find the strong outside/centre vertical rules.
- let cx=lineNear(col,.40,.60);
- if(cx<0)cx=Math.round(w/2);
+ // First find the 2x2 cell separators.
+ const cx=peakNear(col,w/2,w*.14);
+ const cy=peakNear(row,h*.55,h*.25);
 
- let left=lineNear(col,.03,.30);
- if(left<0 || left>w*.25) left=Math.round(w*.08);
+ // Each lower cell. Do NOT use the page edge as the card edge.
+ let lx0=Math.floor(w*.02), lx1=cx-Math.floor(w*.01);
+ let rx0=cx+Math.floor(w*.01), rx1=Math.floor(w*.98);
+ let ty=cy+Math.floor(h*.015), by=Math.floor(h*.98);
 
- let right=lineNear(col,.70,.97);
- if(right<0 || right<w*.70) right=Math.round(w*.92);
+ // Search inside each lower cell for a rectangular border.
+ function borderIn(x0,x1,y0,y1){
+   const spanX=x1-x0, spanY=y1-y0;
+   const vx=[],vy=[];
+   const nX=60,nY=60;
 
- // The bottom horizontal border is normally the strongest dark rule
- // in the lower part of the sheet.
- let bottom=lineNear(row,.82,.99);
- if(bottom<0)bottom=Math.round(h*.96);
+   // score each candidate line by edge energy in the central 70% of the other axis
+   function vScore(x){
+     let sum=0, a=Math.floor(y0+spanY*.08), b=Math.floor(y1-spanY*.08);
+     for(let y=a;y<b;y++) sum+=Math.min(255,col[x]/Math.max(1,h));
+     return sum;
+   }
+   function hScore(y){
+     let sum=0, a=Math.floor(x0+spanX*.08), b=Math.floor(x1-spanX*.08);
+     for(let x=a;x<b;x++) sum+=Math.min(255,row[y]/Math.max(1,w));
+     return sum;
+   }
 
- // Use the measured left-half width and the exact card aspect ratio.
- const aspect=85.60/53.98;
- const gapX=Math.max(2,Math.round(w*.006));
- const usableLeft=cx-left-2*gapX;
- const usableRight=right-cx-2*gapX;
- const cardW=Math.max(30,Math.min(usableLeft,usableRight));
- const cardH=Math.round(cardW/aspect);
+   let vl=-1,vr=-1,ht=-1,hb=-1,svl=-1,svr=-1,sht=-1,shb=-1;
+   for(let k=0;k<=nX;k++){
+     const x=Math.round(x0+spanX*k/nX), sc=vScore(x);
+     if(k<25 && sc>svl){svl=sc;vl=x}
+     if(k>35 && sc>svr){svr=sc;vr=x}
+   }
+   for(let k=0;k<=nY;k++){
+     const y=Math.round(y0+spanY*k/nY), sc=hScore(y);
+     if(k<35 && sc>sht){sht=sc;ht=y}
+     if(k>55 && sc>shb){shb=sc;hb=y}
+   }
 
- // Anchor to the detected bottom border, so the crop ends exactly at
- // the bottom edge and cannot include the upper row.
- const y2=Math.min(h-2,bottom-gapY());
- const y1=Math.max(0,y2-cardH);
+   // Conservative inset: keep content inside the detected guide,
+   // while avoiding external cut marks.
+   const ix=Math.max(2,Math.round(spanX*.008));
+   const iy=Math.max(2,Math.round(spanY*.008));
+   if(vl<0)vl=x0+ix; if(vr<0)vr=x1-ix;
+   if(ht<0)ht=y0+iy; if(hb<0)hb=y1-iy;
 
- const front={x:left+gapX,y:y1,w:cardW,h:y2-y1};
- const back={x:cx+gapX,y:y1,w:cardW,h:y2-y1};
+   if(vr-vl<spanX*.55){vl=x0+ix;vr=x1-ix}
+   if(hb-ht<spanY*.55){ht=y0+iy;hb=y1-iy}
 
- window.frontRect=front;
- window.backRect=back;
+   return {x:vl+ix,y:ht+iy,w:Math.max(20,vr-vl-2*ix),h:Math.max(20,hb-ht-2*iy)}
+ }
 
- updatePreview("front",front,"AUTO • Bottom Left / FRONT");
- updatePreview("back",back,"AUTO • Bottom Right / BACK");
+ const front=borderIn(lx0,lx1,ty,by);
+ const back=borderIn(rx0,rx1,ty,by);
+
+ window.frontRect=front;window.backRect=back;
+ updatePreview("front",front,"AUTO • Border Inside • FRONT");
+ updatePreview("back",back,"AUTO • Border Inside • BACK");
+
  selection=null;restore();
- $("status").textContent="✅ AUTO CUT: खालच्या 2 बॉक्समधून FRONT + BACK";
+ $("status").textContent="✅ AUTO CUT: borderच्या आत crop + screen-only guide. Guide print/PVC वर येणार नाही.";
 }
-function gapY(){ return Math.max(2,Math.round(src.height*.006)); }
 
 $("autoBtn").onclick=autoCut;
 
