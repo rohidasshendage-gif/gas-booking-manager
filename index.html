@@ -18,7 +18,12 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 .row{display:flex;gap:9px}.row>*{flex:1}.status{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px;margin-top:10px}
 .hint,.note{font-size:12px;color:var(--muted);line-height:1.5}.tabs{display:flex;gap:8px}.tabs>*{flex:1}
 .workspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
-#sourceCanvas{max-width:100%;max-height:68vh;display:block;touch-action:none}.empty{color:#708096;text-align:center;padding:50px}
+#sourceWrap{position:relative;display:inline-block;max-width:100%}
+#sourceCanvas{max-width:100%;max-height:68vh;display:block;touch-action:none}
+#cropBox{position:absolute;display:none;border:2px solid #39a0ff;box-shadow:0 0 0 9999px rgba(0,0,0,.42);touch-action:none}
+.handle{position:absolute;width:18px;height:18px;background:#39a0ff;border:2px solid white;border-radius:50%;z-index:3}
+.handle.tl{left:-10px;top:-10px}.handle.tr{right:-10px;top:-10px}.handle.bl{left:-10px;bottom:-10px}.handle.br{right:-10px;bottom:-10px}
+.empty{color:#708096;text-align:center;padding:50px}
 .crops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.cropCard{background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.cropCard canvas{width:100%;background:#fff;display:block;aspect-ratio:85.6/53.98}
 .badge{display:inline-block;padding:5px 8px;border-radius:8px;background:#123d79;color:#bcd8ff;font-size:11px;margin-top:7px}
 #printSheet{display:none}
@@ -59,7 +64,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 
 <section class="panel">
 <h2>Crop Workspace</h2>
-<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 बोटाने drag करून crop करा</div><canvas id="sourceCanvas"></canvas></div>
+<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 Crop box हलवा / handles ने आकार बदला</div><div id="sourceWrap"><canvas id="sourceCanvas"></canvas><div id="cropBox"><span class="handle tl"></span><span class="handle tr"></span><span class="handle bl"></span><span class="handle br"></span></div></div></div>
 <div class="crops">
 <div class="cropCard"><div class="hint">FRONT • 85.60 × 53.98 mm</div><canvas id="frontPreview" width="856" height="540"></canvas><div id="frontBadge" class="badge">Not selected</div></div>
 <div class="cropCard"><div class="hint">BACK • 85.60 × 53.98 mm</div><canvas id="backPreview" width="856" height="540"></canvas><div id="backBadge" class="badge">Not selected</div></div>
@@ -79,6 +84,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/p
 const $=id=>document.getElementById(id);
 let file=null,pdf=null,pageNum=1,side="front",img=null,selection=null,drag=null,baseData=null;
 const src=$("sourceCanvas"),ctx=src.getContext("2d"),fp=$("frontPreview"),bp=$("backPreview");
+const cropBox=$("cropBox"), sourceWrap=$("sourceWrap");
+let boxMode=null,boxStart=null,boxRectScreen=null;
 
 $("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
 $("newBtn").onclick=()=>location.reload();
@@ -121,43 +128,79 @@ $("next").onclick=async()=>{if(pdf&&pageNum<pdf.numPages){pageNum++;$("page").va
 function restore(){if(baseData)ctx.putImageData(baseData,0,0)}
 function point(e){const r=src.getBoundingClientRect();return{x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height}}
 function drawOverlay(){restore();if(selection&&selection.w>2&&selection.h>2){ctx.save();ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,src.width,src.height);ctx.clearRect(selection.x,selection.y,selection.w,selection.h);ctx.strokeStyle="#35a0ff";ctx.lineWidth=Math.max(3,src.width/500);ctx.strokeRect(selection.x,selection.y,selection.w,selection.h);ctx.restore()}}
+function showCropBox(r){
+ if(!r){cropBox.style.display="none";return}
+ const sr=src.getBoundingClientRect(), wr=sourceWrap.getBoundingClientRect();
+ const sx=sr.width/src.width, sy=sr.height/src.height;
+ cropBox.style.display="block";
+ cropBox.style.left=((r.x*sx)+(sr.left-wr.left))+"px";
+ cropBox.style.top=((r.y*sy)+(sr.top-wr.top))+"px";
+ cropBox.style.width=(r.w*sx)+"px";
+ cropBox.style.height=(r.h*sy)+"px";
+ boxRectScreen={x:r.x,y:r.y,w:r.w,h:r.h};
+}
+function currentRect(){
+ return side==="front"?window.frontRect:window.backRect;
+}
+function saveRect(r,label="MANUAL • Box"){
+ if(side==="front")window.frontRect=r;else window.backRect=r;
+ updatePreview(side,r,label);
+ showCropBox(r);
+}
+function pointerOnCanvas(e){
+ const r=src.getBoundingClientRect();
+ return {x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height};
+}
+function boxPointerDown(e){
+ e.preventDefault();e.stopPropagation();
+ cropBox.setPointerCapture(e.pointerId);
+ const p=pointerOnCanvas(e),r=currentRect();
+ const sr=src.getBoundingClientRect(),sx=src.width/sr.width,sy=src.height/sr.height;
+ const left=r.x*sx,top=r.y*sy,right=(r.x+r.w)*sx,bottom=(r.y+r.h)*sy;
+ const mx=(e.clientX-sr.left),my=(e.clientY-sr.top);
+ const nearL=Math.abs(mx-left)<24,nearR=Math.abs(mx-right)<24,nearT=Math.abs(my-top)<24,nearB=Math.abs(my-bottom)<24;
+ boxStart={p,r:{...r}};
+ if(nearL&&nearT)boxMode="tl";else if(nearR&&nearT)boxMode="tr";else if(nearL&&nearB)boxMode="bl";else if(nearR&&nearB)boxMode="br";else boxMode="move";
+}
+function boxPointerMove(e){
+ if(!boxStart)return;
+ e.preventDefault();e.stopPropagation();
+ const p=pointerOnCanvas(e),o=boxStart.r,dx=p.x-boxStart.p.x,dy=p.y-boxStart.p.y;
+ let r={...o},min=12;
+ if(boxMode==="move"){r.x=o.x+dx;r.y=o.y+dy}
+ if(boxMode.includes("l")){r.x=o.x+dx;r.w=o.w-dx}
+ if(boxMode.includes("r")){r.w=o.w+dx}
+ if(boxMode.includes("t")){r.y=o.y+dy;r.h=o.h-dy}
+ if(boxMode.includes("b")){r.h=o.h+dy}
+ r.x=Math.max(0,Math.min(r.x,src.width-min));r.y=Math.max(0,Math.min(r.y,src.height-min));
+ r.w=Math.max(min,Math.min(r.w,src.width-r.x));r.h=Math.max(min,Math.min(r.h,src.height-r.y));
+ showCropBox(r);
+}
+function boxPointerUp(e){
+ if(!boxStart)return;
+ const r=boxRectScreen;boxStart=null;boxMode=null;
+ if(r)saveRect(r,"MANUAL • Box adjusted");
+}
+["pointerdown","pointermove","pointerup"].forEach(ev=>cropBox.addEventListener(ev,ev==="pointerdown"?boxPointerDown:ev==="pointermove"?boxPointerMove:boxPointerUp));
+
 src.addEventListener("pointerdown",e=>{
- if(!src.width)return;
- e.preventDefault();
+ if(!src.width)return;e.preventDefault();
+ const p=pointerOnCanvas(e);
+ boxStart={p,r:currentRect()||{x:p.x,y:p.y,w:0,h:0}};
+ boxMode="new";
  src.setPointerCapture(e.pointerId);
- const p=point(e);
- drag=p;
- selection={x:p.x,y:p.y,w:0,h:0};
- drawOverlay();
 });
 src.addEventListener("pointermove",e=>{
- if(!drag)return;
- e.preventDefault();
- const p=point(e);
- selection={
-   x:Math.min(drag.x,p.x),
-   y:Math.min(drag.y,p.y),
-   w:Math.abs(p.x-drag.x),
-   h:Math.abs(p.y-drag.y)
- };
- drawOverlay();
+ if(!boxStart||boxMode!=="new")return;e.preventDefault();
+ const p=pointerOnCanvas(e),r=boxStart.r;
+ const nr={x:Math.min(boxStart.p.x,p.x),y:Math.min(boxStart.p.y,p.y),w:Math.abs(p.x-boxStart.p.x),h:Math.abs(p.y-boxStart.p.y)};
+ showCropBox(nr);boxRectScreen=nr;
 });
 src.addEventListener("pointerup",e=>{
- if(!drag)return;
- const p=point(e);
- selection={
-   x:Math.min(drag.x,p.x),
-   y:Math.min(drag.y,p.y),
-   w:Math.abs(p.x-drag.x),
-   h:Math.abs(p.y-drag.y)
- };
- drag=null;
- if(selection.w>10 && selection.h>10){
-   setCrop(side,selection,"MANUAL • User selected");
-   $("status").textContent=(side==="front"?"FRONT":"BACK")+" crop set. पुन्हा drag करून बदलू शकता.";
- }
+ if(!boxStart||boxMode!=="new")return;
+ const r=boxRectScreen;boxStart=null;boxMode=null;
+ if(r&&r.w>10&&r.h>10)saveRect(r,"MANUAL • Box selected");
 });
-src.addEventListener("pointercancel",()=>{drag=null});
 
 function updatePreview(which,r,label){
  if(!r||r.w<5||r.h<5)return;
@@ -167,7 +210,11 @@ function updatePreview(which,r,label){
 }
 function setCrop(which,r,label){if(which==="front")window.frontRect=r;else window.backRect=r;updatePreview(which,r,label)}
 
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{side=b.dataset.side;document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")});
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+ side=b.dataset.side;
+ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+ showCropBox(currentRect());
+});
 
 function findLines(){
  // Detect long dark border/cut lines using projection of grayscale darkness.
@@ -189,6 +236,7 @@ function findLines(){
 function autoCut(){
  selection=null;
  restore();
+ cropBox.style.display="none";
  if(side==="front"){
    window.frontRect=null;
    const c=fp.getContext("2d"); c.clearRect(0,0,fp.width,fp.height);
