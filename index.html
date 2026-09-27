@@ -20,7 +20,11 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 .workspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
 #sourceWrap{position:relative;display:inline-block;max-width:100%}
 #sourceCanvas{max-width:100%;max-height:68vh;display:block;touch-action:none}
-#cropBox{position:absolute;display:none;border:2px solid #39a0ff;box-shadow:0 0 0 9999px rgba(0,0,0,.42);touch-action:none}
+#cropBox{position:absolute;display:none;border:3px solid #168cff;background:rgba(22,140,255,.08);box-sizing:border-box;touch-action:none;z-index:20}
+.handle{position:absolute;width:20px;height:20px;background:#168cff;border:3px solid #fff;border-radius:50%;z-index:30;box-shadow:0 1px 5px rgba(0,0,0,.55);touch-action:none}
+.handle.tl{left:-12px;top:-12px}.handle.tr{right:-12px;top:-12px}.handle.bl{left:-12px;bottom:-12px}.handle.br{right:-12px;bottom:-12px}
+.handle.tm{left:50%;top:-12px;transform:translateX(-50%)}.handle.bm{left:50%;bottom:-12px;transform:translateX(-50%)}
+.handle.ml{left:-12px;top:50%;transform:translateY(-50%)}.handle.mr{right:-12px;top:50%;transform:translateY(-50%)}
 .handle{position:absolute;width:18px;height:18px;background:#39a0ff;border:2px solid white;border-radius:50%;z-index:3}
 .handle.tl{left:-10px;top:-10px}.handle.tr{right:-10px;top:-10px}.handle.bl{left:-10px;bottom:-10px}.handle.br{right:-10px;bottom:-10px}
 .empty{color:#708096;text-align:center;padding:50px}
@@ -64,7 +68,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 
 <section class="panel">
 <h2>Crop Workspace</h2>
-<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 Crop box हलवा / handles ने आकार बदला</div><div id="sourceWrap"><canvas id="sourceCanvas"></canvas><div id="cropBox"><span class="handle tl"></span><span class="handle tr"></span><span class="handle bl"></span><span class="handle br"></span></div></div></div>
+<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 Crop box हलवा / handles ने आकार बदला</div><div id="sourceWrap"><canvas id="sourceCanvas"></canvas><div id="cropBox"><span class="handle tl"></span><span class="handle tm"></span><span class="handle tr"></span><span class="handle ml"></span><span class="handle mr"></span><span class="handle bl"></span><span class="handle bm"></span><span class="handle br"></span></div></div></div>
 <div class="crops">
 <div class="cropCard"><div class="hint">FRONT • 85.60 × 53.98 mm</div><canvas id="frontPreview" width="856" height="540"></canvas><div id="frontBadge" class="badge">Not selected</div></div>
 <div class="cropCard"><div class="hint">BACK • 85.60 × 53.98 mm</div><canvas id="backPreview" width="856" height="540"></canvas><div id="backBadge" class="badge">Not selected</div></div>
@@ -127,18 +131,7 @@ $("next").onclick=async()=>{if(pdf&&pageNum<pdf.numPages){pageNum++;$("page").va
 
 function restore(){if(baseData)ctx.putImageData(baseData,0,0)}
 function point(e){const r=src.getBoundingClientRect();return{x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height}}
-function drawOverlay(){restore();if(selection&&selection.w>2&&selection.h>2){ctx.save();ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,src.width,src.height);ctx.clearRect(selection.x,selection.y,selection.w,selection.h);ctx.strokeStyle="#35a0ff";ctx.lineWidth=Math.max(3,src.width/500);ctx.strokeRect(selection.x,selection.y,selection.w,selection.h);ctx.restore()}}
-function showCropBox(r){
- if(!r){cropBox.style.display="none";return}
- const sr=src.getBoundingClientRect(), wr=sourceWrap.getBoundingClientRect();
- const sx=sr.width/src.width, sy=sr.height/src.height;
- cropBox.style.display="block";
- cropBox.style.left=((r.x*sx)+(sr.left-wr.left))+"px";
- cropBox.style.top=((r.y*sy)+(sr.top-wr.top))+"px";
- cropBox.style.width=(r.w*sx)+"px";
- cropBox.style.height=(r.h*sy)+"px";
- boxRectScreen={x:r.x,y:r.y,w:r.w,h:r.h};
-}
+function drawOverlay(){restore();}
 function currentRect(){
  return side==="front"?window.frontRect:window.backRect;
 }
@@ -160,7 +153,8 @@ function boxPointerDown(e){
  const mx=(e.clientX-sr.left),my=(e.clientY-sr.top);
  const nearL=Math.abs(mx-left)<24,nearR=Math.abs(mx-right)<24,nearT=Math.abs(my-top)<24,nearB=Math.abs(my-bottom)<24;
  boxStart={p,r:{...r}};
- if(nearL&&nearT)boxMode="tl";else if(nearR&&nearT)boxMode="tr";else if(nearL&&nearB)boxMode="bl";else if(nearR&&nearB)boxMode="br";else boxMode="move";
+ if(nearL&&nearT)boxMode="tl";else if(nearR&&nearT)boxMode="tr";else if(nearL&&nearB)boxMode="bl";else if(nearR&&nearB)boxMode="br";
+ else if(nearT)boxMode="t";else if(nearB)boxMode="b";else if(nearL)boxMode="l";else if(nearR)boxMode="r";else boxMode="move";
 }
 function boxPointerMove(e){
  if(!boxStart)return;
@@ -204,6 +198,7 @@ src.addEventListener("pointerup",e=>{
 
 function updatePreview(which,r,label){
  if(!r||r.w<5||r.h<5)return;
+ restore();
  const out=which==="front"?fp:bp,oc=out.getContext("2d");oc.clearRect(0,0,out.width,out.height);oc.fillStyle="#fff";oc.fillRect(0,0,out.width,out.height);
  restore();oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height);
  $(which==="front"?"frontBadge":"backBadge").textContent=label;
