@@ -153,42 +153,71 @@ function findLines(){
  return {xs,ys};
 }
 function autoCut(){
- if(!baseData)return;
+ if(!baseData){alert("आधी PDF / Image उघडा.");return}
  restore();
- // Prefer the common ID-sheet layout: two columns and/or a 2x2 sheet.
- const {xs,ys}=findLines();
- let left=0,right=src.width,top=0,bottom=src.height;
- // choose strong interior lines closest to the middle, while ignoring outer edges
- const innerX=xs.filter(x=>x>src.width*.08&&x<src.width*.92);
- const innerY=ys.filter(y=>y>src.height*.08&&y<src.height*.92);
- if(innerX.length) {
-   const mid=src.width/2; leftCandidates=innerX.filter(x=>x<mid); rightCandidates=innerX.filter(x>mid);
-   if(leftCandidates.length) left=leftCandidates[leftCandidates.length-1];
-   if(rightCandidates.length) right=rightCandidates[0];
+
+ // Aadhaar-style 4-box sheet:
+ // detect the strongest vertical and horizontal separator near the centre.
+ // Then choose the BOTTOM-LEFT and BOTTOM-RIGHT boxes as FRONT/BACK.
+ const w=src.width,h=src.height,data=baseData.data;
+ const col=new Float32Array(w),row=new Float32Array(h);
+
+ for(let y=0;y<h;y++){
+   for(let x=0;x<w;x++){
+     const i=(y*w+x)*4;
+     const g=(data[i]+data[i+1]+data[i+2])/3;
+     if(g<110){
+       col[x]+=1;
+       row[y]+=1;
+     }
+   }
  }
- if(innerY.length) {
-   const mid=src.height/2; const upper=innerY.filter(y=>y<mid),lower=innerY.filter(y=>y>mid);
-   // If a horizontal middle cut is present, use the upper row.
-   if(upper.length) top=0,bottom=upper[upper.length-1];
+
+ function strongest(a,lo,hi){
+   let best=-1,bi=-1;
+   const from=Math.floor(a.length*lo),to=Math.floor(a.length*hi);
+   for(let i=from;i<to;i++){
+     if(a[i]>best){best=a[i];bi=i}
+   }
+   return bi;
  }
- // If no useful lines were detected, use the most common 2-column/2-row layout.
- if(right-left<src.width*.35){left=0;right=src.width}
- if(bottom-top<src.height*.30){top=0;bottom=src.height}
- const gapX=(right-left)*.012,gapY=(bottom-top)*.012;
- const front={x:left+gapX,y:top+gapY,w:right-left-2*gapX,h:bottom-top-2*gapY};
- let back;
- if(innerX.length){
-   const mid=src.width/2,rx=innerX.find(x=>x>mid);
-   back=rx?{x:rx+gapX,y:top+gapY,w:src.width-rx-2*gapX,h:bottom-top-2*gapY}:{x:src.width/2+gapX,y:top+gapY,w:src.width/2-2*gapX,h:bottom-top-2*gapY};
- }else{
-   back={x:src.width/2+gapX,y:top+gapY,w:src.width/2-2*gapX,h:bottom-top-2*gapY};
- }
- // For a 2x2 sheet, front/back are the first two boxes in the top row.
- window.frontRect=front;window.backRect=back;
- updatePreview("front",front,"Auto detected ✂️");updatePreview("back",back,"Auto detected ✂️");
- selection=null;restore();
- $("status").textContent="✂️ Front / Back auto-detected. गरज असल्यास drag करून बदलता येईल.";
+
+ // Search for the centre separator. A real cut line is usually dark over
+ // a large portion of the page.
+ let cx=strongest(col,.38,.62);
+ let cy=strongest(row,.38,.62);
+
+ // If centre projections are weak, use exact 2x2 geometry as fallback.
+ if(cx<0) cx=Math.round(w/2);
+ if(cy<0) cy=Math.round(h/2);
+
+ // Small inward margin to avoid including the cut line itself.
+ const mx=Math.max(3,Math.round(w*.012));
+ const my=Math.max(3,Math.round(h*.012));
+
+ const leftX=mx;
+ const rightX=cx+mx;
+ const leftW=Math.max(20,cx-2*mx);
+ const rightW=Math.max(20,w-cx-2*mx);
+
+ const topY=cy+my;
+ const boxH=Math.max(20,h-cy-2*my);
+
+ // IMPORTANT: bottom row = actual Aadhaar front/back in the supplied layout.
+ const front={x:leftX,y:topY,w:leftW,h:boxH};
+ const back={x:rightX,y:topY,w:rightW,h:boxH};
+
+ window.frontRect=front;
+ window.backRect=back;
+
+ updatePreview("front",front,"AUTO • Bottom Left / FRONT");
+ updatePreview("back",back,"AUTO • Bottom Right / BACK");
+
+ selection=null;
+ restore();
+ $("status").textContent="✅ AUTO CUT: खालचा डावा = FRONT • खालचा उजवा = BACK";
 }
+
 $("autoBtn").onclick=autoCut;
 
 $("printBtn").onclick=()=>{
