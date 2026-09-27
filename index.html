@@ -175,12 +175,24 @@ function boxPointerUp(e){
  const r=boxRectScreen;boxStart=null;boxMode=null;
  if(r)saveRect(r,"MANUAL • Box adjusted");
 }
-["pointerdown","pointermove","pointerup"].forEach(ev=>cropBox.addEventListener(ev,ev==="pointerdown"?boxPointerDown:ev==="pointermove"?boxPointerMove:boxPointerUp));
+["pointerdown","pointermove","pointerup","pointercancel"].forEach(ev=>{
+ cropBox.addEventListener(ev,e=>{
+   e.stopPropagation();
+   if(ev==="pointerdown")boxPointerDown(e);
+   else if(ev==="pointermove")boxPointerMove(e);
+   else if(ev==="pointerup")boxPointerUp(e);
+   else {boxStart=null;boxMode=null;}
+ });
+});
 
 src.addEventListener("pointerdown",e=>{
- if(!src.width)return;e.preventDefault();
+ if(!src.width)return;
+ // Existing crop box handles are used for resize/move.
+ // Canvas drag creates a new crop only after the current crop is cleared.
+ if(currentRect()) return;
+ e.preventDefault();
  const p=pointerOnCanvas(e);
- boxStart={p,r:currentRect()||{x:p.x,y:p.y,w:0,h:0}};
+ boxStart={p,r:{x:p.x,y:p.y,w:0,h:0}};
  boxMode="new";
  src.setPointerCapture(e.pointerId);
 });
@@ -204,6 +216,13 @@ function updatePreview(which,r,label){
  $(which==="front"?"frontBadge":"backBadge").textContent=label;
 }
 function setCrop(which,r,label){if(which==="front")window.frontRect=r;else window.backRect=r;updatePreview(which,r,label)}
+
+$("newCrop").onclick=()=>{
+ if(side==="front")window.frontRect=null;else window.backRect=null;
+ cropBox.style.display="none";
+ restore();
+ $("status").textContent="New crop: आता image वर drag करा.";
+};
 
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
  side=b.dataset.side;
