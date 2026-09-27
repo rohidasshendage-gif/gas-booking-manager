@@ -156,118 +156,130 @@ function autoCut(){
  if(!baseData){alert("आधी PDF / Image उघडा.");return}
  restore();
 
- /*
-  * V7: Find the OUTER CARD RECTANGLE, not text/QR lines.
-  * The supplied sheet has 2 cards in the lower row.
-  * We score only long continuous edges. Short text lines are ignored.
-  */
+ // V8: Rectangle-first detection.
+ // Do NOT detect text, QR, red internal lines, etc.
+ // Find long continuous outer borders in the lower 2-card row.
  const w=src.width,h=src.height,data=baseData.data;
- const gray=new Uint8Array(w*h);
-
+ const dark=new Uint8Array(w*h);
  for(let y=0;y<h;y++){
    for(let x=0;x<w;x++){
      const i=(y*w+x)*4;
-     gray[y*w+x]=Math.round((data[i]*.299+data[i+1]*.587+data[i+2]*.114));
+     const g=data[i]*.299+data[i+1]*.587+data[i+2]*.114;
+     dark[y*w+x]=(g<155)?1:0;
    }
  }
 
- function hScore(y,x0,x1){
-   let hits=0,total=0,run=0,bestRun=0;
-   for(let x=x0+Math.round((x1-x0)*.08);x<x1-Math.round((x1-x0)*.08);x++){
-     const a=gray[y*w+x], b=gray[(Math.max(0,y-2))*w+x], c=gray[(Math.min(h-1,y+2))*w+x];
-     const g=Math.max(Math.abs(a-b),Math.abs(c-a));
-     total++;
-     if(g>28){hits++;run++;bestRun=Math.max(bestRun,run)}else run=0;
+ function longestVertical(x,y0,y1){
+   let run=0,best=0,count=0;
+   for(let y=y0;y<=y1;y++){
+     if(dark[y*w+x]){run++;count++;if(run>best)best=run}else run=0;
    }
-   // Long continuous lines get much more weight than text.
-   return hits/Math.max(1,total) + .8*(bestRun/Math.max(1,total));
+   return {best,count};
  }
-
- function vScore(x,y0,y1){
-   let hits=0,total=0,run=0,bestRun=0;
-   for(let y=y0+Math.round((y1-y0)*.08);y<y1-Math.round((y1-y0)*.08);y++){
-     const a=gray[y*w+x], b=gray[y*w+Math.max(0,x-2)], c=gray[y*w+Math.min(w-1,x+2)];
-     const g=Math.max(Math.abs(a-b),Math.abs(c-a));
-     total++;
-     if(g>28){hits++;run++;bestRun=Math.max(bestRun,run)}else run=0;
+ function longestHorizontal(y,x0,x1){
+   let run=0,best=0,count=0;
+   for(let x=x0;x<=x1;x++){
+     if(dark[y*w+x]){run++;count++;if(run>best)best=run}else run=0;
    }
-   return hits/Math.max(1,total) + .8*(bestRun/Math.max(1,total));
+   return {best,count};
+ }
+ function groupPeaks(scores,minGap){
+   const out=[]; let g=[];
+   for(let i=0;i<scores.length;i++){
+     if(scores[i]<=0)continue;
+     if(!g.length || i-g[g.length-1]>minGap){if(g.length)out.push(g);g=[i]}
+     else g.push(i);
+   }
+   if(g.length)out.push(g);
+   return out.map(a=>Math.round(a.reduce((s,v)=>s+v,0)/a.length));
  }
 
- // Locate the lower row separator using a long horizontal line.
- let cy=Math.round(h*.52),best=-1;
- for(let y=Math.round(h*.35);y<=Math.round(h*.72);y++){
-   const sc=hScore(y,Math.round(w*.06),Math.round(w*.94));
-   if(sc>best){best=sc;cy=y}
+ const rowTop=Math.floor(h*.48), rowBot=Math.floor(h*.98);
+
+ // Vertical outer borders: require a long uninterrupted dark run.
+ const vScore=new Float32Array(w);
+ for(let x=0;x<w;x++){
+   const q=longestVertical(x,rowTop,rowBot);
+   vScore[x]=(q.best>h*.18 && q.count>h*.28)?q.best:q.best*.08;
  }
+ let vx=groupPeaks(vScore,Math.max(3,Math.floor(w*.008)));
 
- const leftX0=Math.round(w*.02), leftX1=Math.round(w*.495);
- const rightX0=Math.round(w*.505), rightX1=Math.round(w*.98);
+ // Keep useful verticals separated. Prefer the 3 strongest long lines.
+ vx=vx.filter(x=>x>w*.03&&x<w*.97);
+ vx.sort((a,b)=>vScore[b]-vScore[a]);
+ let chosen=[];
+ for(const x of vx){
+   if(chosen.every(q=>Math.abs(q-x)>w*.08)){chosen.push(x)}
+   if(chosen.length>=6)break;
+ }
+ chosen.sort((a,b)=>a-b);
 
- function findCard(x0,x1){
-   const y0=cy+Math.round(h*.01), y1=Math.round(h*.98);
-   const cellW=x1-x0, cellH=y1-y0;
+ // We expect left outer, middle divider, right outer.
+ // Pick a triplet with reasonable equal cell widths.
+ let bestTrip=null,bestTripScore=-Infinity;
+ for(let i=0;i<chosen.length;i++)for(let j=i+1;j<chosen.length;j++)for(let k=j+1;k<chosen.length;k++){
+   const a=chosen[i],b=chosen[j],c=chosen[k];
+   const lw=b-a,rw=c-b;
+   if(lw<w*.22||rw<w*.22)continue;
+   const balance=1-Math.abs(lw-rw)/Math.max(lw,rw);
+   const score=vScore[a]+vScore[b]+vScore[c]+balance*h;
+   if(score>bestTripScore){bestTripScore=score;bestTrip=[a,b,c]}
+ }
+ if(!bestTrip)bestTrip=[Math.round(w*.02),Math.round(w*.5),Math.round(w*.98)];
+
+ const [L0,M0,R0]=bestTrip;
+
+ function detectHorizontal(x0,x1){
+   const y0=rowTop,y1=rowBot;
+   const hScore=new Float32Array(h);
+   for(let y=y0;y<=y1;y++){
+     const q=longestHorizontal(y,x0,x1);
+     hScore[y]=(q.best>(x1-x0)*.35 && q.count>(x1-x0)*.42)?q.best:q.best*.05;
+   }
+
+   // Find top/bottom candidates by longest continuous line.
+   let top=y0,bottom=y1,ts=-1,bs=-1;
+   for(let y=y0;y<=Math.floor(y0+(y1-y0)*.45);y++){
+     if(hScore[y]>ts){ts=hScore[y];top=y}
+   }
+   for(let y=Math.floor(y0+(y1-y0)*.45);y<=y1;y++){
+     if(hScore[y]>bs){bs=hScore[y];bottom=y}
+   }
+
+   // If a bottom/other internal text line was selected, use the
+   // physical card ratio to reject it.
    const ratio=85.60/53.98;
-
-   // Find long top/bottom borders first.
-   let top=y0,bottom=y1,st=-1,sb=-1;
-   const topLo=y0, topHi=Math.round(y0+cellH*.38);
-   const botLo=Math.round(y0+cellH*.55), botHi=y1;
-   for(let y=topLo;y<=topHi;y++){
-     const sc=hScore(y,x0,x1);
-     if(sc>st){st=sc;top=y}
-   }
-   for(let y=botLo;y<=botHi;y++){
-     const sc=hScore(y,x0,x1);
-     if(sc>sb){sb=sc;bottom=y}
+   const cellW=x1-x0;
+   const expectedH=cellW/ratio;
+   if(bottom-top < expectedH*.72 || bottom-top > expectedH*1.30){
+     bottom=Math.min(y1,Math.round(top+expectedH));
    }
 
-   // Force a realistic card ratio while preserving the detected top.
-   let height=bottom-top;
-   let width=height*ratio;
-   if(width>cellW*.96){
-     width=cellW*.96;height=width/ratio;
-     bottom=Math.min(y1,top+height);
+   // Re-check bottom: choose the strongest horizontal line near the
+   // expected physical bottom, not an internal red/text line.
+   const target=Math.round(top+expectedH);
+   let bestY=bottom,bestS=-1;
+   for(let y=Math.max(top+Math.round(expectedH*.72),target-Math.round(expectedH*.18));
+       y<=Math.min(y1,target+Math.round(expectedH*.18));y++){
+     if(hScore[y]>bestS){bestS=hScore[y];bestY=y}
    }
+   if(bestS>0)bottom=bestY;
 
-   // Center inside each lower cell; then search for strong vertical borders.
-   let center=(x0+x1)/2;
-   let L=center-width/2, R=center+width/2;
-
-   // Search left/right edge around expected locations.
-   let bestL=-1,bL=-1,bestR=-1,bR=-1;
-   for(let x=Math.max(x0+2,Math.round(L-cellW*.12));x<=Math.min(x1-2,Math.round(L+cellW*.12));x++){
-     const sc=vScore(x,top,bottom);
-     if(sc>bL){bL=sc;bestL=x}
-   }
-   for(let x=Math.max(x0+2,Math.round(R-cellW*.12));x<=Math.min(x1-2,Math.round(R+cellW*.12));x++){
-     const sc=vScore(x,top,bottom);
-     if(sc>bR){bR=sc;bestR=x}
-   }
-
-   if(bestL>0 && bestR>bestL && (bestR-bestL)>cellW*.55){
-     L=bestL;R=bestR;
-   }
-
-   // IMPORTANT: crop just INSIDE the physical border.
-   const inset=Math.max(2,Math.round(Math.min(R-L,bottom-top)*.012));
-   return {
-     x:Math.round(L+inset),
-     y:Math.round(top+inset),
-     w:Math.round(Math.max(20,R-L-2*inset)),
-     h:Math.round(Math.max(20,bottom-top-2*inset))
-   };
+   // Keep the crop strictly INSIDE the outer border.
+   const inset=Math.max(2,Math.round(Math.min(cellW,bottom-top)*.009));
+   return {x:Math.round(x0+inset),y:Math.round(top+inset),
+           w:Math.round(cellW-2*inset),h:Math.round(bottom-top-2*inset)};
  }
 
- const front=findCard(leftX0,leftX1);
- const back=findCard(rightX0,rightX1);
+ const front=detectHorizontal(L0,M0);
+ const back=detectHorizontal(M0,R0);
 
  window.frontRect=front;window.backRect=back;
- updatePreview("front",front,"AUTO • OUTER BORDER INSIDE • FRONT");
- updatePreview("back",back,"AUTO • OUTER BORDER INSIDE • BACK");
+ updatePreview("front",front,"AUTO • OUTER RECTANGLE • FRONT");
+ updatePreview("back",back,"AUTO • OUTER RECTANGLE • BACK");
  selection=null;restore();
 
- $("status").textContent="✅ पूर्ण card borderच्या आत घेतला आहे. Text/QR lines मुळे crop बदलणार नाही.";
+ $("status").textContent="✅ AUTO: बाहेरील rectangle आतून crop. Internal text/QR/red lines ignore.";
 }
 $("autoBtn").onclick=autoCut;
 
