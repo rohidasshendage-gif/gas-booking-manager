@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ID Print Studio</title>
+<style>
+:root{--bg:#0b1020;--panel:#111827;--panel2:#182235;--line:#293548;--text:#f8fafc;--muted:#94a3b8;--accent:#3b82f6;--green:#10b981;--danger:#ef4444}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#080c18,#111827);color:var(--text);font-family:Inter,Arial,sans-serif}
+header{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#0b1020e8;position:sticky;top:0;z-index:20}
+.brand{font-size:20px;font-weight:800;letter-spacing:.2px}.brand span{color:#60a5fa}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.wrap{max-width:1280px;margin:auto;padding:16px}.toolbar,.panel{background:linear-gradient(180deg,#131d2d,#101827);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 35px #0004}
+.toolbar{padding:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}.panel{padding:14px}
+input,select{background:#0b1220;color:var(--text);border:1px solid #334155;border-radius:9px;padding:10px;outline:none}input[type=file]{max-width:260px}
+button,.filebtn{border:0;border-radius:9px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;transition:.15s}
+button:hover,.filebtn:hover{filter:brightness(1.1);transform:translateY(-1px)}button.gray{background:#334155}button.green{background:var(--green)}button.red{background:var(--danger)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;margin-top:14px}.stage{min-height:540px;background:#080d16;border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column}
+.stagehead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.title{font-weight:800}.hint{font-size:12px;color:var(--muted)}
+.canvasbox{flex:1;min-height:460px;display:flex;align-items:center;justify-content:center;overflow:auto;background:repeating-conic-gradient(#0d1522 0 25%,#101a29 0 50%) 50%/24px 24px;border-radius:12px;padding:12px}
+.cropwrap{position:relative;display:inline-block;line-height:0}.cropwrap canvas{max-width:min(100%,850px);height:auto;display:block;cursor:crosshair;border-radius:5px}
+#sel{position:absolute;display:none;border:2px solid #22c55e;background:#22c55e2b;box-shadow:0 0 0 9999px #0005;pointer-events:none}
+.side{display:flex;flex-direction:column;gap:14px}.sectiontitle{font-weight:800;margin-bottom:10px}.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kv div{background:#0b1220;border:1px solid #253246;border-radius:10px;padding:10px}.num{font-size:18px;font-weight:800}.lbl{font-size:11px;color:var(--muted)}
+.tabs{display:flex;gap:6px}.tab{flex:1;background:#1e293b}.tab.active{background:var(--accent)}
+.preview{background:#080d16;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}.paper{width:100%;aspect-ratio:2/3;background:#fff;position:relative;border-radius:5px;overflow:hidden;margin:auto}
+.card{position:absolute;width:84.25%;height:35.42%;left:7.88%;object-fit:fill;background:#eee}.front{top:9.17%}.back{top:55.42%}
+.status{font-size:13px;color:#bfdbfe;background:#10233f;border:1px solid #1d4ed8;border-radius:10px;padding:10px;margin-top:10px}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.empty{color:#64748b;text-align:center;padding:30px}.hidden{display:none!important}
+footer{padding:16px;text-align:center;color:#64748b;font-size:11px}
+@media(max-width:900px){.workspace{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.canvasbox{min-height:390px}}
+@media(max-width:600px){header{height:auto;padding:12px}.workspace{margin-top:10px}.side{display:flex}.stage{min-height:440px}.canvasbox{min-height:330px;padding:6px}.toolbar{padding:9px}.toolbar>*{width:100%}.toolbar .row{width:100%}input[type=file]{max-width:none}}
+@media print{
+ @page{size:4in 6in;margin:0}
+ body>*{display:none!important}#printArea{display:block!important;width:4in;height:6in;background:#fff;position:relative}
+ #printArea img{position:absolute;width:3.3701in;height:2.1252in;object-fit:fill;left:.315in}
+ #printFront{top:.55in}#printBack{top:3.325in}
+}
+#printArea{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="brand">ID <span>PRINT STUDIO</span></div><div class="sub">PDF • Crop • Front / Back • 4×6 Print • Secure PDF</div></div>
+  <button class="gray" id="newBtn">＋ New Job</button>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <label class="filebtn">📄 Choose PDF <input id="pdfFile" type="file" accept="application/pdf" hidden></label>
+    <input id="pwd" type="password" placeholder="🔐 Password (if any)">
+    <button id="openBtn">Open PDF</button>
+    <div class="row">
+      <button class="gray" id="prevBtn">‹</button>
+      <select id="pageNo" disabled><option>Page</option></select>
+      <button class="gray" id="nextBtn">›</button>
+    </div>
+    <button class="gray" id="fitBtn">Fit</button>
+    <button class="gray" id="zoomOut">−</button>
+    <span id="zoomText" class="small">100%</span>
+    <button class="gray" id="zoomIn">＋</button>
+  </div>
+
+  <div id="status" class="status">PDF निवडा → Open PDF दाबा. Password असेल तर वरच्या box मध्ये टाका.</div>
+
+  <div class="workspace">
+    <section class="stage">
+      <div class="stagehead">
+        <div><div class="title" id="modeTitle">Crop Workspace</div><div class="hint">PDF मधून फक्त आवश्यक area select करा</div></div>
+        <div class="tabs"><button class="tab active" id="frontTab">FRONT</button><button class="tab" id="backTab">BACK</button></div>
+      </div>
+      <div class="canvasbox">
+        <div id="empty" class="empty">PDF उघडल्यानंतर page इथे दिसेल.</div>
+        <div class="cropwrap hidden" id="cropWrap"><canvas id="canvas"></canvas><div id="sel"></div></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="green" id="cropBtn">✂ Crop & Save</button>
+        <button class="gray" id="clearBtn">Clear Selection</button>
+        <span class="small" id="selectionInfo">No selection</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="sectiontitle">🪪 Card Preview</div>
+        <div class="preview"><canvas id="frontPreview" width="342" height="216" style="width:100%;aspect-ratio:1.583;object-fit:fill"></canvas><div class="small">Front • 85.60 × 53.98 mm</div></div>
+        <div style="height:8px"></div>
+        <div class="preview"><canvas id="backPreview" width="342" height="216" style="width:100%;aspect-ratio:1.583;object-fit:fill"></canvas><div class="small">Back • 85.60 × 53.98 mm</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="sectiontitle">📐 4×6 Print</div>
+        <div class="kv">
+          <div><div class="num">4 × 6"</div><div class="lbl">Paper</div></div>
+          <div><div class="num">85.60×53.98</div><div class="lbl">Card mm</div></div>
+        </div>
+        <div style="height:10px"></div>
+        <button class="green" style="width:100%" id="printBtn">🖨 Print 4×6</button>
+        <p class="small">Print dialog मध्ये paper size 4×6 inch निवडा आणि Scale = 100% / Actual Size ठेवा.</p>
+      </div>
+
+      <div class="panel">
+        <div class="sectiontitle">⚙ Job Info</div>
+        <div class="small" id="jobInfo">No PDF loaded</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<footer>Local browser tool • PDF data is processed in your browser</footer>
+
+<div id="printArea">
+  <img id="printFront"><img id="printBack">
+</div>
+
+<script type="module">
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/pdf.mjs";
+
+const $=id=>document.getElementById(id);
+let pdf=null,page=1,scale=1.2,selection=null,start=null,side="front",frontData=null,backData=null;
+
+function setStatus(x){$("status").textContent=x}
+function setTab(){
+ $("frontTab").classList.toggle("active",side==="front");
+ $("backTab").classList.toggle("active",side==="back");
+ $("modeTitle").textContent=(side==="front"?"Front":"Back")+" Crop Workspace";
+}
+function fitScale(){
+ if(!pdf)return 1.2;
+ const box=$("canvas").parentElement.getBoundingClientRect();
+ return Math.max(.5,Math.min(2.2,(box.width-25)/900));
+}
+async function render(){
+ if(!pdf)return;
+ const pg=await pdf.getPage(page),vp=pg.getViewport({scale});
+ const c=$("canvas"),cx=c.getContext("2d");
+ c.width=vp.width;c.height=vp.height;
+ await pg.render({canvasContext:cx,viewport:vp}).promise;
+ $("empty").classList.add("hidden");$("cropWrap").classList.remove("hidden");
+ selection=null;$("sel").style.display="none";$("selectionInfo").textContent="No selection";
+ $("zoomText").textContent=Math.round(scale*100)+"%";
+ $("pageNo").value=String(page);
+}
+function point(e){
+ const r=$("canvas").getBoundingClientRect(),c=$("canvas");
+ return {x:Math.max(0,Math.min(c.width,(e.clientX-r.left)*c.width/r.width)),
+         y:Math.max(0,Math.min(c.height,(e.clientY-r.top)*c.height/r.height))};
+}
+$("canvas").addEventListener("pointerdown",e=>{if(!pdf)return;start=point(e);$("canvas").setPointerCapture(e.pointerId)});
+$("canvas").addEventListener("pointermove",e=>{
+ if(!start)return;
+ const p=point(e),x=Math.min(start.x,p.x),y=Math.min(start.y,p.y),w=Math.abs(p.x-start.x),h=Math.abs(p.y-start.y);
+ selection={x,y,w,h};
+ const r=$("canvas").getBoundingClientRect(),sx=r.width/$("canvas").width,sy=r.height/$("canvas").height;
+ Object.assign($("sel").style,{display:"block",left:x*sx+"px",top:y*sy+"px",width:w*sx+"px",height:h*sy+"px"});
+ $("selectionInfo").textContent=Math.round(w)+" × "+Math.round(h)+" px";
+});
+$("canvas").addEventListener("pointerup",()=>start=null);
+
+function crop(){
+ if(!selection||selection.w<8||selection.h<8){alert("आधी PDF वर crop area select करा.");return null}
+ const c=document.createElement("canvas");c.width=Math.round(selection.w);c.height=Math.round(selection.h);
+ c.getContext("2d").drawImage($("canvas"),selection.x,selection.y,selection.w,selection.h,0,0,c.width,c.height);
+ return c.toDataURL("image/png");
+}
+function preview(id,data){
+ const c=$(id),x=c.getContext("2d");x.clearRect(0,0,c.width,c.height);
+ if(!data){x.fillStyle="#e5e7eb";x.fillRect(0,0,c.width,c.height);return}
+ const im=new Image();im.onload=()=>x.drawImage(im,0,0,c.width,c.height);im.src=data;
+}
+
+$("frontTab").onclick=()=>{side="front";setTab()};
+$("backTab").onclick=()=>{side="back";setTab()};
+$("cropBtn").onclick=()=>{
+ const d=crop();if(!d)return;
+ if(side==="front")frontData=d;else backData=d;
+ preview(side==="front"?"frontPreview":"backPreview",d);
+ setStatus((side==="front"?"Front":"Back")+" crop saved successfully.");
+};
+$("clearBtn").onclick=()=>{selection=null;$("sel").style.display="none";$("selectionInfo").textContent="No selection"};
+$("fitBtn").onclick=()=>{scale=fitScale();render()};
+$("zoomIn").onclick=()=>{scale=Math.min(4,scale+.15);render()};
+$("zoomOut").onclick=()=>{scale=Math.max(.4,scale-.15);render()};
+$("prevBtn").onclick=()=>{if(pdf&&page>1){page--;render()}};
+$("nextBtn").onclick=()=>{if(pdf&&page<pdf.numPages){page++;render()}};
+$("pageNo").onchange=()=>{page=Number($("pageNo").value);render()};
+
+$("openBtn").onclick=async()=>{
+ const f=$("pdfFile").files[0];
+ if(!f){alert("PDF निवडा.");return}
+ $("openBtn").disabled=true;
+ setStatus("PDF loading...");
+ try{
+  const data=new Uint8Array(await f.arrayBuffer());
+  const initialPwd=$("pwd").value.trim();
+  const task=pdfjsLib.getDocument({data,disableWorker:true,enableScripting:false,password:initialPwd||undefined});
+  let attempts=0;
+  task.onPassword=(setPassword,reason)=>{
+   attempts++;
+   const field=$("pwd");
+   let pass=field.value.trim();
+   if(reason===2 || !pass){
+    pass=prompt(reason===2?"❌ Password चुकीचा आहे. पुन्हा password टाका:":"🔐 या PDF ला password आहे. Password टाका:");
+    if(pass===null || !String(pass).trim()){setStatus("🔐 Password आवश्यक आहे.");return}
+    field.value=String(pass); pass=String(pass).trim();
+   }
+   if(attempts<=6)setPassword(pass); else setStatus("Password attempts संपले. Open PDF पुन्हा करा.");
+  };
+  pdf=await task.promise;
+  page=1;scale=fitScale();
+  $("pageNo").disabled=false;$("pageNo").innerHTML="";
+  for(let i=1;i<=pdf.numPages;i++)$("pageNo").add(new Option(i,i));
+  $("jobInfo").innerHTML="<b>"+f.name+"</b><br>"+pdf.numPages+" pages";
+  await render();
+  setStatus("✅ PDF ready. FRONT / BACK निवडा आणि area crop करा.");
+ }catch(e){
+  console.error(e);
+  const msg=(e&&e.name==="PasswordException")?"🔐 PDF password स्वीकारला गेला नाही. Open PDF पुन्हा करून योग्य password टाका.":"⚠️ PDF उघडता आला नाही. PDF format/encryption browser reader ला support नसू शकते.";
+  setStatus(msg); alert(msg);
+ }finally{$("openBtn").disabled=false}
+};
+
+$("printBtn").onclick=()=>{
+ if(!frontData&&!backData){alert("किमान Front किंवा Back crop करा.");return}
+ $("printFront").src=frontData||"";$("printBack").src=backData||"";
+ window.print();
+};
+$("newBtn").onclick=()=>location.reload();
+preview("frontPreview",null);preview("backPreview",null);
+</script>
+</body>
+</html>
