@@ -96,10 +96,9 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <div class="printCard p3"><img id="pi3"></div><div class="printCard p4"><img id="pi4"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">window.addEventListener("resize",()=>{syncSourceWrap();if(currentRect())showCropBox(currentRect())});
-</script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 const $=id=>document.getElementById(id);
 let file=null,pdf=null,pageNum=1,side="front",img=null,selection=null,drag=null,baseData=null;
 const src=$("sourceCanvas"),ctx=src.getContext("2d"),fp=$("frontPreview"),bp=$("backPreview");
@@ -118,12 +117,20 @@ $("newBtn").onclick=()=>location.reload();
 
 async function openFile(){
  if(!file){alert("पहिले PDF किंवा Image निवडा.");return}
+ if((file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")) && typeof pdfjsLib==="undefined"){
+   alert("PDF engine load झाला नाही. Internet ON करून page refresh करा.");
+   $("status").textContent="PDF engine unavailable";
+   return;
+ }
  try{
   if(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")){
    $("status").textContent="PDF loading...";
    const opts={data:new Uint8Array(await file.arrayBuffer())};
    if($("password").value)opts.password=$("password").value;
-   opts.passwordPrompt=()=>new Promise((resolve,reject)=>{const p=prompt("PDF password टाका:");p===null?reject(new Error("cancel")):resolve(p)});
+   opts.passwordPrompt=()=>new Promise((resolve,reject)=>{
+     const p=prompt("PDF password टाका:");
+     p===null?reject(new Error("cancel")):resolve(p);
+   });
    pdf=await pdfjsLib.getDocument(opts).promise;
    $("page").innerHTML="";
    for(let i=1;i<=pdf.numPages;i++){const o=document.createElement("option");o.value=i;o.textContent="Page "+i;$("page").appendChild(o)}
@@ -134,7 +141,14 @@ async function openFile(){
    img.onload=()=>{drawImage();$("status").textContent="Image loaded.";requestAnimationFrame(()=>requestAnimationFrame(initDefaultCrop))};
    img.src=URL.createObjectURL(file);
   }else throw Error("unsupported");
- }catch(e){console.error(e);alert("PDF उघडता आला नाही. Password/format तपासा.");$("status").textContent="Open failed"}
+ }catch(e){
+   console.error(e);
+   const msg=(e && e.name==="PasswordException")
+     ?"PDF password चुकीचा आहे किंवा password आवश्यक आहे."
+     :"PDF उघडता आला नाही. PDF file/Internet तपासा.";
+   alert(msg);
+   $("status").textContent="Open failed";
+ }
 }
 async function renderPage(){
  const p=await pdf.getPage(pageNum),b=p.getViewport({scale:1}),scale=Math.min(3.2,3200/Math.max(b.width,b.height)),v=p.getViewport({scale});
@@ -563,6 +577,10 @@ $("saveBtn").onclick=()=>{
   a.click();
   a.remove();
 };
-window.addEventListener("resize",()=>{syncSourceWrap();if(currentRect())showCropBox(currentRect())});
+window.addEventListener("resize",()=>{
+  if(typeof syncSourceWrap==="function")syncSourceWrap();
+  if(typeof currentRect==="function" && currentRect())showCropBox(currentRect());
+  if(typeof personRect!=="undefined" && personRect && typeof showPersonBox==="function")showPersonBox(personRect);
+});
 </script>
 </body></html>
