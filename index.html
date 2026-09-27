@@ -42,7 +42,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <label class="fileBtn" for="file">📄 Choose PDF / 🖼️ Image</label>
 <input id="file" type="file" accept=".pdf,application/pdf,image/*" hidden>
 <input id="password" type="password" placeholder="PDF password (जर असेल तर)">
-<div class="row"><button id="openBtn">Open</button><button class="ghost" id="autoBtn">✂️ Auto Cut + Guide</button></div>
+<div class="row"><button id="openBtn">Open</button><button class="ghost" id="autoBtn">✂️ Clear Crop</button></div>
 <div class="row" style="margin-top:8px"><button class="ghost" id="prev">‹</button><button class="ghost" id="next">›</button></div>
 <select id="page" disabled><option>Page</option></select>
 <div class="status" id="status">PDF / Image निवडा.</div>
@@ -50,7 +50,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>2. Crop</h2>
 <div class="tabs"><button class="active tab" data-side="front">FRONT</button><button class="ghost tab" data-side="back">BACK</button></div>
-<div class="hint" style="margin-top:9px">Card च्या border च्या आत crop होईल. निळी guide line फक्त screen वर आहे; print/PVC वर छापली जाणार नाही.</div>
+<div class="hint" style="margin-top:9px">FRONT किंवा BACK निवडा आणि image वर बोटाने drag करून स्वतः crop area सेट करा. पुन्हा drag केल्यास selection बदलेल.</div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
 <button id="printBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
@@ -59,7 +59,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 
 <section class="panel">
 <h2>Crop Workspace</h2>
-<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.</div><canvas id="sourceCanvas"></canvas></div>
+<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 बोटाने drag करून crop करा</div><canvas id="sourceCanvas"></canvas></div>
 <div class="crops">
 <div class="cropCard"><div class="hint">FRONT • 85.60 × 53.98 mm</div><canvas id="frontPreview" width="856" height="540"></canvas><div id="frontBadge" class="badge">Not selected</div></div>
 <div class="cropCard"><div class="hint">BACK • 85.60 × 53.98 mm</div><canvas id="backPreview" width="856" height="540"></canvas><div id="backBadge" class="badge">Not selected</div></div>
@@ -121,9 +121,43 @@ $("next").onclick=async()=>{if(pdf&&pageNum<pdf.numPages){pageNum++;$("page").va
 function restore(){if(baseData)ctx.putImageData(baseData,0,0)}
 function point(e){const r=src.getBoundingClientRect();return{x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height}}
 function drawOverlay(){restore();if(selection&&selection.w>2&&selection.h>2){ctx.save();ctx.fillStyle="rgba(0,0,0,.48)";ctx.fillRect(0,0,src.width,src.height);ctx.clearRect(selection.x,selection.y,selection.w,selection.h);ctx.strokeStyle="#35a0ff";ctx.lineWidth=Math.max(3,src.width/500);ctx.strokeRect(selection.x,selection.y,selection.w,selection.h);ctx.restore()}}
-src.addEventListener("pointerdown",e=>{if(!src.width)return;src.setPointerCapture(e.pointerId);const p=point(e);drag=p;selection={x:p.x,y:p.y,w:0,h:0};drawOverlay()});
-src.addEventListener("pointermove",e=>{if(!drag)return;const p=point(e);selection={x:Math.min(drag.x,p.x),y:Math.min(drag.y,p.y),w:Math.abs(p.x-drag.x),h:Math.abs(p.y-drag.y)};drawOverlay()});
-src.addEventListener("pointerup",()=>{drag=null;updatePreview(side,selection,"Manual")});
+src.addEventListener("pointerdown",e=>{
+ if(!src.width)return;
+ e.preventDefault();
+ src.setPointerCapture(e.pointerId);
+ const p=point(e);
+ drag=p;
+ selection={x:p.x,y:p.y,w:0,h:0};
+ drawOverlay();
+});
+src.addEventListener("pointermove",e=>{
+ if(!drag)return;
+ e.preventDefault();
+ const p=point(e);
+ selection={
+   x:Math.min(drag.x,p.x),
+   y:Math.min(drag.y,p.y),
+   w:Math.abs(p.x-drag.x),
+   h:Math.abs(p.y-drag.y)
+ };
+ drawOverlay();
+});
+src.addEventListener("pointerup",e=>{
+ if(!drag)return;
+ const p=point(e);
+ selection={
+   x:Math.min(drag.x,p.x),
+   y:Math.min(drag.y,p.y),
+   w:Math.abs(p.x-drag.x),
+   h:Math.abs(p.y-drag.y)
+ };
+ drag=null;
+ if(selection.w>10 && selection.h>10){
+   setCrop(side,selection,"MANUAL • User selected");
+   $("status").textContent=(side==="front"?"FRONT":"BACK")+" crop set. पुन्हा drag करून बदलू शकता.";
+ }
+});
+src.addEventListener("pointercancel",()=>{drag=null});
 
 function updatePreview(which,r,label){
  if(!r||r.w<5||r.h<5)return;
@@ -153,133 +187,18 @@ function findLines(){
  return {xs,ys};
 }
 function autoCut(){
- if(!baseData){alert("आधी PDF / Image उघडा.");return}
+ selection=null;
  restore();
-
- // V8: Rectangle-first detection.
- // Do NOT detect text, QR, red internal lines, etc.
- // Find long continuous outer borders in the lower 2-card row.
- const w=src.width,h=src.height,data=baseData.data;
- const dark=new Uint8Array(w*h);
- for(let y=0;y<h;y++){
-   for(let x=0;x<w;x++){
-     const i=(y*w+x)*4;
-     const g=data[i]*.299+data[i+1]*.587+data[i+2]*.114;
-     dark[y*w+x]=(g<155)?1:0;
-   }
+ if(side==="front"){
+   window.frontRect=null;
+   const c=fp.getContext("2d"); c.clearRect(0,0,fp.width,fp.height);
+   $("frontBadge").textContent="Not selected";
+ }else{
+   window.backRect=null;
+   const c=bp.getContext("2d"); c.clearRect(0,0,bp.width,bp.height);
+   $("backBadge").textContent="Not selected";
  }
-
- function longestVertical(x,y0,y1){
-   let run=0,best=0,count=0;
-   for(let y=y0;y<=y1;y++){
-     if(dark[y*w+x]){run++;count++;if(run>best)best=run}else run=0;
-   }
-   return {best,count};
- }
- function longestHorizontal(y,x0,x1){
-   let run=0,best=0,count=0;
-   for(let x=x0;x<=x1;x++){
-     if(dark[y*w+x]){run++;count++;if(run>best)best=run}else run=0;
-   }
-   return {best,count};
- }
- function groupPeaks(scores,minGap){
-   const out=[]; let g=[];
-   for(let i=0;i<scores.length;i++){
-     if(scores[i]<=0)continue;
-     if(!g.length || i-g[g.length-1]>minGap){if(g.length)out.push(g);g=[i]}
-     else g.push(i);
-   }
-   if(g.length)out.push(g);
-   return out.map(a=>Math.round(a.reduce((s,v)=>s+v,0)/a.length));
- }
-
- const rowTop=Math.floor(h*.48), rowBot=Math.floor(h*.98);
-
- // Vertical outer borders: require a long uninterrupted dark run.
- const vScore=new Float32Array(w);
- for(let x=0;x<w;x++){
-   const q=longestVertical(x,rowTop,rowBot);
-   vScore[x]=(q.best>h*.18 && q.count>h*.28)?q.best:q.best*.08;
- }
- let vx=groupPeaks(vScore,Math.max(3,Math.floor(w*.008)));
-
- // Keep useful verticals separated. Prefer the 3 strongest long lines.
- vx=vx.filter(x=>x>w*.03&&x<w*.97);
- vx.sort((a,b)=>vScore[b]-vScore[a]);
- let chosen=[];
- for(const x of vx){
-   if(chosen.every(q=>Math.abs(q-x)>w*.08)){chosen.push(x)}
-   if(chosen.length>=6)break;
- }
- chosen.sort((a,b)=>a-b);
-
- // We expect left outer, middle divider, right outer.
- // Pick a triplet with reasonable equal cell widths.
- let bestTrip=null,bestTripScore=-Infinity;
- for(let i=0;i<chosen.length;i++)for(let j=i+1;j<chosen.length;j++)for(let k=j+1;k<chosen.length;k++){
-   const a=chosen[i],b=chosen[j],c=chosen[k];
-   const lw=b-a,rw=c-b;
-   if(lw<w*.22||rw<w*.22)continue;
-   const balance=1-Math.abs(lw-rw)/Math.max(lw,rw);
-   const score=vScore[a]+vScore[b]+vScore[c]+balance*h;
-   if(score>bestTripScore){bestTripScore=score;bestTrip=[a,b,c]}
- }
- if(!bestTrip)bestTrip=[Math.round(w*.02),Math.round(w*.5),Math.round(w*.98)];
-
- const [L0,M0,R0]=bestTrip;
-
- function detectHorizontal(x0,x1){
-   const y0=rowTop,y1=rowBot;
-   const hScore=new Float32Array(h);
-   for(let y=y0;y<=y1;y++){
-     const q=longestHorizontal(y,x0,x1);
-     hScore[y]=(q.best>(x1-x0)*.35 && q.count>(x1-x0)*.42)?q.best:q.best*.05;
-   }
-
-   // Find top/bottom candidates by longest continuous line.
-   let top=y0,bottom=y1,ts=-1,bs=-1;
-   for(let y=y0;y<=Math.floor(y0+(y1-y0)*.45);y++){
-     if(hScore[y]>ts){ts=hScore[y];top=y}
-   }
-   for(let y=Math.floor(y0+(y1-y0)*.45);y<=y1;y++){
-     if(hScore[y]>bs){bs=hScore[y];bottom=y}
-   }
-
-   // If a bottom/other internal text line was selected, use the
-   // physical card ratio to reject it.
-   const ratio=85.60/53.98;
-   const cellW=x1-x0;
-   const expectedH=cellW/ratio;
-   if(bottom-top < expectedH*.72 || bottom-top > expectedH*1.30){
-     bottom=Math.min(y1,Math.round(top+expectedH));
-   }
-
-   // Re-check bottom: choose the strongest horizontal line near the
-   // expected physical bottom, not an internal red/text line.
-   const target=Math.round(top+expectedH);
-   let bestY=bottom,bestS=-1;
-   for(let y=Math.max(top+Math.round(expectedH*.72),target-Math.round(expectedH*.18));
-       y<=Math.min(y1,target+Math.round(expectedH*.18));y++){
-     if(hScore[y]>bestS){bestS=hScore[y];bestY=y}
-   }
-   if(bestS>0)bottom=bestY;
-
-   // Keep the crop strictly INSIDE the outer border.
-   const inset=Math.max(2,Math.round(Math.min(cellW,bottom-top)*.009));
-   return {x:Math.round(x0+inset),y:Math.round(top+inset),
-           w:Math.round(cellW-2*inset),h:Math.round(bottom-top-2*inset)};
- }
-
- const front=detectHorizontal(L0,M0);
- const back=detectHorizontal(M0,R0);
-
- window.frontRect=front;window.backRect=back;
- updatePreview("front",front,"AUTO • OUTER RECTANGLE • FRONT");
- updatePreview("back",back,"AUTO • OUTER RECTANGLE • BACK");
- selection=null;restore();
-
- $("status").textContent="✅ AUTO: बाहेरील rectangle आतून crop. Internal text/QR/red lines ignore.";
+ $("status").textContent="Crop clear. FRONT/BACK निवडा आणि image वर बोटाने drag करा.";
 }
 $("autoBtn").onclick=autoCut;
 
