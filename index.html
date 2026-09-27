@@ -110,7 +110,9 @@ function syncSourceWrap(){
     sourceWrap.style.height=r.height+"px";
   }
 }
-let boxMode=null,boxStart=null,boxRectScreen=null;\nlet brightness={front:0,back:0}, brightnessMode="full";\nlet personRect=null, drawingPerson=null;
+let boxMode=null,boxStart=null,boxRectScreen=null;
+let brightness={front:0,back:0}, brightnessMode="full";
+let personRect=null, drawingPerson=null;
 
 $("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
 $("newBtn").onclick=()=>location.reload();
