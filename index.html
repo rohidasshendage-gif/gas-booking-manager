@@ -576,8 +576,19 @@ $("saveBtn").onclick=()=>{
     alert("आधी FRONT आणि BACK crop सेट करा.");return;
   }
 
-  const W=1200,H=800,M=18,G=22;
-  const cardW=W-M*2, cardH=Math.floor((H-M*2-G)/2);
+  // 4×6 inch portrait: 1200×1800 px at 300 DPI.
+  // Aadhaar card actual size = 85.60 × 53.98 mm.
+  // Both cards are kept at the same physical size; FRONT top, BACK bottom.
+  const W=1200,H=1800;
+  const MM_TO_PX=W/101.6;
+  const cardW=Math.round(85.60*MM_TO_PX);
+  const cardH=Math.round(53.98*MM_TO_PX);
+  const gap=Math.round(4*MM_TO_PX);
+  const x=Math.round((W-cardW)/2);
+  const totalH=cardH*2+gap;
+  const y1=Math.round((H-totalH)/2);
+  const y2=y1+cardH+gap;
+
   const sheet=document.createElement("canvas");
   sheet.width=W; sheet.height=H;
   const c=sheet.getContext("2d");
@@ -585,12 +596,11 @@ $("saveBtn").onclick=()=>{
   c.imageSmoothingEnabled=true;
   c.imageSmoothingQuality="high";
 
-  // FRONT वर, BACK खाली — 4×6 landscape ratio.
-  c.drawImage(fp,M,M,cardW,cardH);
-  c.drawImage(bp,M,M+cardH+G,cardW,cardH);
+  c.drawImage(fp,x,y1,cardW,cardH);
+  c.drawImage(bp,x,y2,cardW,cardH);
 
   const a=document.createElement("a");
-  a.download="ID_4x6_FRONT_BACK.png";
+  a.download="ID_4x6_AADHAAR_FRONT_BACK.png";
   a.href=sheet.toDataURL("image/png");
   document.body.appendChild(a);
   a.click();
