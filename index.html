@@ -76,8 +76,8 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 </div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
-<button id="saveBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
-<div class="hint" style="margin-top:8px">Print मध्ये Paper 4×6 inch आणि Scale 100% / Actual size निवडा.</div>
+<button id="saveBtn" style="width:100%">💾 Save 4×6 Image</button>
+<div class="hint" style="margin-top:8px">FRONT वर आणि BACK खाली असलेली 4×6 PNG image सेव्ह होईल.</div>
 </section>
 
 <section class="panel">
@@ -96,9 +96,26 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 <div class="printCard p3"><img id="pi3"></div><div class="printCard p4"><img id="pi4"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+let pdfJsReady=null;
+function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement("script");s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error("PDF.js load failed"));document.head.appendChild(s);});}
+async function ensurePdfJs(){
+  if(window.pdfjsLib)return window.pdfjsLib;
+  if(pdfJsReady)return pdfJsReady;
+  const sources=[
+    ["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js","https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"],
+    ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js","https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"],
+    ["https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js","https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js"]
+  ];
+  pdfJsReady=(async()=>{
+    let last=null;
+    for(const [main,worker] of sources){
+      try{await loadScript(main);if(window.pdfjsLib){window.pdfjsLib.GlobalWorkerOptions.workerSrc=worker;return window.pdfjsLib;}}catch(e){last=e;}
+    }
+    throw last||new Error("PDF.js unavailable");
+  })();
+  return pdfJsReady;
+}
 const $=id=>document.getElementById(id);
 let file=null,pdf=null,pageNum=1,side="front",img=null,selection=null,drag=null,baseData=null;
 const src=$("sourceCanvas"),ctx=src.getContext("2d"),fp=$("frontPreview"),bp=$("backPreview");
@@ -119,21 +136,21 @@ $("newBtn").onclick=()=>location.reload();
 
 async function openFile(){
  if(!file){alert("पहिले PDF किंवा Image निवडा.");return}
- if((file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")) && typeof pdfjsLib==="undefined"){
-   alert("PDF engine load झाला नाही. Internet ON करून page refresh करा.");
-   $("status").textContent="PDF engine unavailable";
-   return;
- }
  try{
   if(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")){
+   $("status").textContent="PDF engine loading...";
+   const lib=await ensurePdfJs();
    $("status").textContent="PDF loading...";
    const opts={data:new Uint8Array(await file.arrayBuffer())};
    if($("password").value)opts.password=$("password").value;
-   opts.passwordPrompt=()=>new Promise((resolve,reject)=>{
-     const p=prompt("PDF password टाका:");
-     p===null?reject(new Error("cancel")):resolve(p);
-   });
-   pdf=await pdfjsLib.getDocument(opts).promise;
+   const loadingTask=lib.getDocument(opts);
+   loadingTask.onPassword=(updatePassword)=>{
+     const entered=$("password").value||prompt("PDF password टाका:");
+     if(entered===null||entered===undefined){loadingTask.destroy();return;}
+     $("password").value=entered;
+     updatePassword(entered);
+   };
+   pdf=await loadingTask.promise;
    $("page").innerHTML="";
    for(let i=1;i<=pdf.numPages;i++){const o=document.createElement("option");o.value=i;o.textContent="Page "+i;$("page").appendChild(o)}
    $("page").disabled=false;pageNum=1;$("page").value=1;await renderPage();
