@@ -76,7 +76,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 </div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
-<button id="printBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
+<button id="saveBtn" style="width:100%">🖨️ 4×6 Photo Print</button>
 <div class="hint" style="margin-top:8px">Print मध्ये Paper 4×6 inch आणि Scale 100% / Actual size निवडा.</div>
 </section>
 
@@ -538,11 +538,27 @@ $("resetBrightness").onclick=()=>{
 };
 updateBrightnessUI();
 
-$("printBtn").onclick=()=>{
- const f=fp.toDataURL("image/jpeg",1.0),b=bp.toDataURL("image/jpeg",1.0);
- if(!window.frontRect||!window.backRect){alert("आधी FRONT आणि BACK crop सेट करा.");return}
- ["pi1","pi3"].forEach(id=>$(id).src=f);["pi2","pi4"].forEach(id=>$(id).src=b);
- setTimeout(()=>window.print(),150);
+$("saveBtn").onclick=()=>{
+  if(!window.frontRect||!window.backRect){
+    alert("आधी FRONT आणि BACK crop सेट करा.");return;
+  }
+
+  const W=1200, H=800, GAP=22, M=18;
+  const cardW=W-(M*2), cardH=Math.floor((H-M*2-GAP)/2);
+  const sheet=document.createElement("canvas");
+  sheet.width=W; sheet.height=H;
+  const c=sheet.getContext("2d");
+  c.fillStyle="#fff"; c.fillRect(0,0,W,H);
+  c.imageSmoothingEnabled=true;
+  c.imageSmoothingQuality="high";
+
+  c.drawImage(fp,M,M,cardW,cardH);
+  c.drawImage(bp,M,M+cardH+GAP,cardW,cardH);
+
+  const a=document.createElement("a");
+  a.download="ID_4x6_FRONT_BACK.png";
+  a.href=sheet.toDataURL("image/png");
+  a.click();
 };
 window.addEventListener("resize",()=>{syncSourceWrap();if(currentRect())showCropBox(currentRect())});
 </script>
