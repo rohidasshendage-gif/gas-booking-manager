@@ -543,8 +543,8 @@ $("saveBtn").onclick=()=>{
     alert("आधी FRONT आणि BACK crop सेट करा.");return;
   }
 
-  const W=1200, H=800, GAP=22, M=18;
-  const cardW=W-(M*2), cardH=Math.floor((H-M*2-GAP)/2);
+  const W=1200,H=800,M=18,G=22;
+  const cardW=W-M*2, cardH=Math.floor((H-M*2-G)/2);
   const sheet=document.createElement("canvas");
   sheet.width=W; sheet.height=H;
   const c=sheet.getContext("2d");
@@ -552,13 +552,16 @@ $("saveBtn").onclick=()=>{
   c.imageSmoothingEnabled=true;
   c.imageSmoothingQuality="high";
 
+  // FRONT वर, BACK खाली — 4×6 landscape ratio.
   c.drawImage(fp,M,M,cardW,cardH);
-  c.drawImage(bp,M,M+cardH+GAP,cardW,cardH);
+  c.drawImage(bp,M,M+cardH+G,cardW,cardH);
 
   const a=document.createElement("a");
   a.download="ID_4x6_FRONT_BACK.png";
   a.href=sheet.toDataURL("image/png");
+  document.body.appendChild(a);
   a.click();
+  a.remove();
 };
 window.addEventListener("resize",()=>{syncSourceWrap();if(currentRect())showCropBox(currentRect())});
 </script>
