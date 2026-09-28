@@ -658,13 +658,16 @@ window.addEventListener("resize",()=>{
    let cropH, cropW, cx, cy;
    if(face){
      const fx=face.x*iw, fy=face.y*ih, fw=face.w*iw, fh=face.h*ih;
-     // Keep the detected face around 28% of the final photo height and include shoulders/upper torso.
-     cropH=Math.min(ih, fh/0.28);
+     // Passport/identity framing: head + shoulders only.
+     // Keep the face large and centered; deliberately exclude hands/arms and lower torso.
+     // Face height is used as the anchor so different original photo sizes frame consistently.
+     cropH=Math.min(ih, fh/0.52);
      cropW=cropH*(w/h);
      if(cropW>iw){cropW=iw;cropH=cropW/(w/h);}
      cx=fx+fw/2;
-     cy=fy+fh/2 + cropH*0.10;
-     let x=cx-cropW/2, y=cy-cropH*0.30;
+     // Face center sits around 40% from the top in a standard 35×45 identity photo.
+     const targetFaceCenterY=cropH*0.40;
+     let x=cx-cropW/2, y=(fy+fh/2)-targetFaceCenterY;
      x=Math.max(0,Math.min(iw-cropW,x)); y=Math.max(0,Math.min(ih-cropH,y));
      c.drawImage(im,x,y,cropW,cropH,0,0,w,h);
    }else{
@@ -690,7 +693,7 @@ window.addEventListener("resize",()=>{
  function sharpen(ctx,w,h,amount){if(!amount)return; const img=ctx.getImageData(0,0,w,h),d=img.data,copy=new Uint8ClampedArray(d); const a=amount/100; for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let k=0;k<3;k++){const v=copy[i+k]* (1+4*a) - a*(copy[i-4+k]+copy[i+4+k]+copy[i-w*4+k]+copy[i+w*4+k]);d[i+k]=Math.max(0,Math.min(255,v))}} ctx.putImageData(img,0,0)}
  async function segmentAndRender(){
    if(!photo){alert('पहिले Photo निवडा.');return false}
-   status.textContent='Face शोधून Identity Photo तयार होत आहे...';
+   status.textContent='Face शोधून Head + Shoulder Identity Crop तयार होत आहे...';
    const W=413,H=531; fitCanvas(pv,W,H); pc.clearRect(0,0,W,H);
    const face=await detectFace(photo);
    drawIdentityCrop(pc,photo,W,H,face);
