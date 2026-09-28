@@ -37,6 +37,9 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
  .p1{left:.08in;top:.08in}.p2{left:2.55in;top:.08in}.p3{left:.08in;top:1.77in}.p4{left:2.55in;top:1.77in}
  @page{size:6in 4in;margin:0}
 }
+
+/* Identity Photo Tool — independent module */
+.idtool{margin:18px auto;max-width:1100px;padding:0 14px}.idpanel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}.idgrid{display:grid;grid-template-columns:340px 1fr;gap:16px}.idworkspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.idpreview{background:#fff;max-width:100%;max-height:70vh;display:block}..idcontrols{display:grid;gap:10px}.bgbtns{display:flex;gap:8px}.bgbtns button{flex:1}.idactive{outline:3px solid #fff;outline-offset:2px}.idresult{margin-top:15px;background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.idresult canvas{width:100%;max-width:520px;display:block;margin:auto;background:#fff}.idhint{font-size:12px;color:var(--muted);line-height:1.5}.idstatus{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px}.idtools-title{font-size:17px;margin:0 0 12px}@media(max-width:800px){.idgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -90,6 +93,36 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 </section>
 </div>
 </main>
+
+
+<section class="idtool noPrint" id="identityTool">
+  <div class="idpanel">
+    <h2 class="idtools-title">📸 Identity Photo — 4×6</h2>
+    <div class="idgrid">
+      <div class="idcontrols">
+        <label class="fileBtn" for="idPhoto">🖼️ Choose Photo</label>
+        <input id="idPhoto" type="file" accept="image/*" hidden>
+        <div class="status" style="margin-top:0">Photo Size: <b>35 × 45 mm</b></div>
+        <div style="padding:12px;background:#081423;border:1px solid var(--line);border-radius:12px">
+          <div style="font-weight:800;font-size:14px">🎨 Background</div>
+          <div class="bgbtns" style="margin-top:10px"><button id="idBlue" class="idactive">🔵 Blue</button><button id="idRed" class="ghost">🔴 Red</button></div>
+        </div>
+        <div style="padding:12px;background:#081423;border:1px solid var(--line);border-radius:12px">
+          <div style="font-weight:800;font-size:14px">✨ HD Enhance</div>
+          <input id="idEnhance" type="range" min="0" max="40" value="15" style="width:100%;margin-top:10px;accent-color:#287cff">
+          <div class="idhint">फोटो upscale + clarity/sharpness सुधारली जाईल. चेहरा generate किंवा बदलला जाणार नाही.</div>
+        </div>
+        <button id="idProcess">✨ Create Identity Photo</button>
+        <button id="idSave" class="ghost">💾 Save 4×6 HD</button>
+        <div class="idstatus" id="idStatus">Photo निवडा.</div>
+      </div>
+      <div>
+        <div class="idworkspace"><canvas id="idPreview" class="idpreview" width="413" height="531"></canvas></div>
+        <div class="idresult"><div class="idhint" style="margin-bottom:8px">4×6 sheet • 35×45 mm • 6 copies</div><canvas id="idSheet" width="1200" height="1800"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <div id="printSheet">
 <div class="printCard p1"><img id="pi1"></div><div class="printCard p2"><img id="pi2"></div>
@@ -611,5 +644,37 @@ window.addEventListener("resize",()=>{
   if(typeof currentRect==="function" && currentRect())showCropBox(currentRect());
   if(typeof personRect!=="undefined" && personRect && typeof showPersonBox==="function")showPersonBox(personRect);
 });
+
+/* ===== Identity Photo Tool: independent code; does not modify Aadhaar tool state ===== */
+(()=>{
+ const f=document.getElementById('idPhoto'), pv=document.getElementById('idPreview'), pc=pv.getContext('2d'), sheet=document.getElementById('idSheet'), sc=sheet.getContext('2d');
+ const blue=document.getElementById('idBlue'), red=document.getElementById('idRed'), enhance=document.getElementById('idEnhance'), process=document.getElementById('idProcess'), save=document.getElementById('idSave'), status=document.getElementById('idStatus');
+ let photo=null,bg='#1677c8',result=null;
+ function fitCanvas(c,w,h){c.width=w;c.height=h;}
+ function load(){if(!f.files[0])return; const im=new Image(); im.onload=()=>{photo=im; pc.clearRect(0,0,pv.width,pv.height); drawCover(pc,im,pv.width,pv.height); status.textContent='Photo loaded. Background निवडा आणि Create करा.'}; im.src=URL.createObjectURL(f.files[0]);}
+ function drawCover(c,im,w,h){const ir=im.naturalWidth/im.naturalHeight, cr=w/h; let dw,dh,dx,dy;if(ir>cr){dh=h;dw=h*ir;dx=(w-dw)/2;dy=0}else{dw=w;dh=w/ir;dx=0;dy=(h-dh)/2} c.drawImage(im,dx,dy,dw,dh);}
+ function sharpen(ctx,w,h,amount){if(!amount)return; const img=ctx.getImageData(0,0,w,h),d=img.data,copy=new Uint8ClampedArray(d); const a=amount/100; for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let k=0;k<3;k++){const v=copy[i+k]* (1+4*a) - a*(copy[i-4+k]+copy[i+4+k]+copy[i-w*4+k]+copy[i+w*4+k]);d[i+k]=Math.max(0,Math.min(255,v))}} ctx.putImageData(img,0,0)}
+ async function segmentAndRender(){
+   if(!photo){alert('पहिले Photo निवडा.');return false}
+   status.textContent='HD photo तयार होत आहे...';
+   const W=413,H=531; fitCanvas(pv,W,H); pc.clearRect(0,0,W,H); drawCover(pc,photo,W,H);
+   // Use browser-native subject segmentation when available through MediaPipe.
+   try{
+    if(!window.SelfieSegmentation){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+    const seg=new SelfieSegmentation({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`}); seg.setOptions({modelSelection:1});
+    const input=document.createElement('canvas');input.width=W;input.height=H;input.getContext('2d').drawImage(pv,0,0);
+    const out=await new Promise((resolve,reject)=>{seg.onResults(resolve);seg.send({image:input}).catch(reject)});
+    const personLayer=document.createElement('canvas');personLayer.width=W;personLayer.height=H;const plc=personLayer.getContext('2d');plc.drawImage(input,0,0);plc.globalCompositeOperation='destination-in';plc.drawImage(out.segmentationMask,0,0,W,H);pc.clearRect(0,0,W,H);pc.fillStyle=bg;pc.fillRect(0,0,W,H);pc.drawImage(personLayer,0,0);
+   }catch(e){
+    // If segmentation library cannot load, keep the original photo rather than changing the face.
+    pc.clearRect(0,0,W,H);drawCover(pc,photo,W,H);
+    status.textContent='Background AI उपलब्ध नाही; photo original ठेवला आहे.';
+   }
+   sharpen(pc,W,H,+enhance.value); result=pv.toDataURL('image/jpeg',0.96);
+   sc.fillStyle='#fff';sc.fillRect(0,0,1200,1800);const cw=413,ch=531,gx=90,gy=48;const xs=[Math.round((1200-2*cw-gx)/2),Math.round((1200-2*cw-gx)/2)+cw+gx];const y0=60;let n=0;for(let r=0;r<3;r++)for(let col=0;col<2;col++){sc.drawImage(pv,xs[col],y0+r*(ch+gy),cw,ch);n++}
+   status.textContent='Ready — 4×6 वर 6 Identity Photos तयार.';return true;
+ }
+ blue.onclick=()=>{bg='#1677c8';blue.classList.add('idactive');red.classList.remove('idactive')};red.onclick=()=>{bg='#d51f2a';red.classList.add('idactive');blue.classList.remove('idactive')};f.onchange=load;process.onclick=segmentAndRender;save.onclick=async()=>{if(!result){if(!(await segmentAndRender()))return} const a=document.createElement('a');a.download='Identity_Photo_4x6_HD.jpg';a.href=sheet.toDataURL('image/jpeg',0.97);document.body.appendChild(a);a.click();a.remove()};
+})();
 </script>
 </body></html>
