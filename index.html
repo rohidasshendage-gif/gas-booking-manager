@@ -659,26 +659,29 @@ window.addEventListener("resize",()=>{
  function load(){if(!f.files[0])return; const im=new Image(); im.onload=()=>{photo=im; pc.clearRect(0,0,pv.width,pv.height); drawCover(pc,im,pv.width,pv.height); status.textContent='Photo loaded. Background निवडा आणि Create करा.'}; im.src=URL.createObjectURL(f.files[0]);}
  function drawCover(c,im,w,h){const ir=im.naturalWidth/im.naturalHeight, cr=w/h; let dw,dh,dx,dy;if(ir>cr){dh=h;dw=h*ir;dx=(w-dw)/2;dy=0}else{dw=w;dh=w/ir;dx=0;dy=(h-dh)/2} c.drawImage(im,dx,dy,dw,dh);}
  function drawIdentityCrop(c,im,w,h,face,pose){
-   const iw=im.naturalWidth, ih=im.naturalHeight;
-   let cropH,cropW,cx,cy;
+   const iw=im.naturalWidth, ih=im.naturalHeight, ratio=w/h;
+   let cropW, cropH, cx, cy;
    if(face){
      const fx=face.x*iw, fy=face.y*ih, fw=face.w*iw, fh=face.h*ih;
-     // Tight identity framing: head + shoulders/upper chest only.
-     // This intentionally excludes hands, wrists and lower torso from casual photos.
-     cropH=Math.min(ih, fh/0.46);
-     cropW=cropH*(w/h);
-     if(cropW>iw){cropW=iw;cropH=cropW/(w/h);}
+     // Standard ID framing: face ~42% of image height, headroom ~10%, shoulders visible.
+     cropH=Math.min(ih, Math.max(fh/0.42, fh*2.25));
+     cropW=cropH*ratio;
+     if(cropW>iw){cropW=iw; cropH=cropW/ratio;}
      cx=fx+fw/2;
-     const targetFaceCenterY=cropH*0.34;
-     let x=cx-cropW/2, y=(fy+fh/2)-targetFaceCenterY;
-     x=Math.max(0,Math.min(iw-cropW,x)); y=Math.max(0,Math.min(ih-cropH,y));
+     cy=fy+fh*0.55;
+     // Put eyes/face comfortably in the upper third.
+     let x=cx-cropW/2;
+     let y=cy-cropH*0.32;
+     x=Math.max(0,Math.min(iw-cropW,x));
+     y=Math.max(0,Math.min(ih-cropH,y));
      c.drawImage(im,x,y,cropW,cropH,0,0,w,h);
    }else{
-     cropH=Math.min(ih, iw/(w/h)); cropW=cropH*(w/h);
-     const x=Math.max(0,(iw-cropW)/2), y=Math.max(0,(ih-cropH)*0.04);
+     cropH=Math.min(ih, iw/ratio); cropW=cropH*ratio;
+     const x=Math.max(0,(iw-cropW)/2), y=Math.max(0,(ih-cropH)*0.08);
      c.drawImage(im,x,y,cropW,cropH,0,0,w,h);
    }
  }
+
  async function detectFace(im){
 
    try{
@@ -690,7 +693,12 @@ window.addEventListener("resize",()=>{
      const det=out.detections&&out.detections[0];
      if(!det||!det.boundingBox)return null;
      const b=det.boundingBox;
-     return {x:Math.max(0,b.xCenter-b.width/2),y:Math.max(0,b.yCenter-b.height/2),w:b.width,h:b.height};
+     // MediaPipe versions may expose normalized or pixel-like values; normalize safely.
+     const raw={x:b.xCenter-b.width/2,y:b.yCenter-b.height/2,w:b.width,h:b.height};
+     const normalized = Math.max(Math.abs(raw.x),Math.abs(raw.y),Math.abs(raw.w),Math.abs(raw.h)) <= 1.5;
+     return normalized
+       ? {x:Math.max(0,raw.x),y:Math.max(0,raw.y),w:raw.w,h:raw.h}
+       : {x:Math.max(0,raw.x/im.naturalWidth),y:Math.max(0,raw.y/im.naturalHeight),w:raw.w/im.naturalWidth,h:raw.h/im.naturalHeight};
    }catch(e){return null}
  }
 
@@ -740,12 +748,9 @@ window.addEventListener("resize",()=>{
    if(!photo){alert('पहिले Photo निवडा.');return false}
    status.textContent='Face / Shoulder alignment तपासत आहे...';
    const W=413,H=531; fitCanvas(pv,W,H); pc.clearRect(0,0,W,H);
-   let working=photo;
-   const roll=poseToggle.checked ? await detectAlignment(photo) : 0;
-   if(Math.abs(roll)>0.01){
-     working=rotateImage(photo,roll);
-     await new Promise(resolve=>{working.onload=resolve});
-   }
+   // Keep the original pixels/face. Pose landmarks are used only as guidance;
+   // never rotate or synthesize the person's body in this browser-only tool.
+   const working=photo;
    const face=await detectFace(working);
    drawIdentityCrop(pc,working,W,H,face);
    // Use browser-native subject segmentation when available through MediaPipe.
