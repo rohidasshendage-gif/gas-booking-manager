@@ -655,121 +655,69 @@ window.addEventListener("resize",()=>{
  const f=document.getElementById('idPhoto'), pv=document.getElementById('idPreview'), pc=pv.getContext('2d'), sheet=document.getElementById('idSheet'), sc=sheet.getContext('2d');
  const blue=document.getElementById('idBlue'), red=document.getElementById('idRed'), enhance=document.getElementById('idEnhance'), poseToggle=document.getElementById('idPose'), process=document.getElementById('idProcess'), save=document.getElementById('idSave'), status=document.getElementById('idStatus');
  let photo=null,bg='#1677c8',result=null;
- function fitCanvas(c,w,h){c.width=w;c.height=h;}
- function load(){if(!f.files[0])return; const im=new Image(); im.onload=()=>{photo=im; pc.clearRect(0,0,pv.width,pv.height); drawCover(pc,im,pv.width,pv.height); status.textContent='Photo loaded. Background निवडा आणि Create करा.'}; im.src=URL.createObjectURL(f.files[0]);}
- function drawCover(c,im,w,h){const ir=im.naturalWidth/im.naturalHeight, cr=w/h; let dw,dh,dx,dy;if(ir>cr){dh=h;dw=h*ir;dx=(w-dw)/2;dy=0}else{dw=w;dh=w/ir;dx=0;dy=(h-dh)/2} c.drawImage(im,dx,dy,dw,dh);}
- function drawIdentityCrop(c,im,w,h,face,pose){
-   const iw=im.naturalWidth, ih=im.naturalHeight, ratio=w/h;
-   let cropW, cropH, cx, cy;
+ function fitCanvas(c,w,h){c.width=w;c.height=h}
+ function load(){if(!f.files[0])return;const im=new Image();im.onload=()=>{photo=im;fitCanvas(pv,413,531);pc.clearRect(0,0,413,531);drawCover(pc,im,413,531);status.textContent='Photo loaded. Background निवडा आणि Create करा.'};im.src=URL.createObjectURL(f.files[0])}
+ function drawCover(c,im,w,h){const ir=im.naturalWidth/im.naturalHeight,cr=w/h;let dw,dh,dx,dy;if(ir>cr){dh=h;dw=h*ir;dx=(w-dw)/2;dy=0}else{dw=w;dh=w/ir;dx=0;dy=(h-dh)/2}c.drawImage(im,dx,dy,dw,dh)}
+ function drawIdentityCrop(c,im,w,h,face){
+   const iw=im.naturalWidth,ih=im.naturalHeight,ratio=w/h;let cropW,cropH,cx,cy,x,y;
    if(face){
-     const fx=face.x*iw, fy=face.y*ih, fw=face.w*iw, fh=face.h*ih;
-     // Standard ID framing: face ~42% of image height, headroom ~10%, shoulders visible.
-     cropH=Math.min(ih, Math.max(fh/0.42, fh*2.25));
-     cropW=cropH*ratio;
-     if(cropW>iw){cropW=iw; cropH=cropW/ratio;}
-     cx=fx+fw/2;
-     cy=fy+fh*0.55;
-     // Put eyes/face comfortably in the upper third.
-     let x=cx-cropW/2;
-     let y=cy-cropH*0.32;
-     x=Math.max(0,Math.min(iw-cropW,x));
-     y=Math.max(0,Math.min(ih-cropH,y));
-     c.drawImage(im,x,y,cropW,cropH,0,0,w,h);
-   }else{
-     cropH=Math.min(ih, iw/ratio); cropW=cropH*ratio;
-     const x=Math.max(0,(iw-cropW)/2), y=Math.max(0,(ih-cropH)*0.08);
-     c.drawImage(im,x,y,cropW,cropH,0,0,w,h);
-   }
+     const fx=face.x*iw,fy=face.y*ih,fw=face.w*iw,fh=face.h*ih;
+     // Natural ID framing: do not make the face huge; keep headroom, both shoulders and upper chest.
+     cropH=Math.min(ih,Math.max(fh*3.15,fh+120));cropW=cropH*ratio;
+     if(cropW>iw){cropW=iw;cropH=cropW/ratio}
+     cx=fx+fw/2;cy=fy+fh*.52;x=cx-cropW/2;y=cy-cropH*.34;
+     x=Math.max(0,Math.min(iw-cropW,x));y=Math.max(0,Math.min(ih-cropH,y));
+   }else{cropH=Math.min(ih,iw/ratio);cropW=cropH*ratio;x=Math.max(0,(iw-cropW)/2);y=Math.max(0,(ih-cropH)*.04)}
+   c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(im,x,y,cropW,cropH,0,0,w,h);c.restore();
  }
-
  async function detectFace(im){
-
    try{
      if(!window.FaceDetection){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-     const fd=new FaceDetection({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});
-     fd.setOptions({model:'short',minDetectionConfidence:0.55});
+     const fd=new FaceDetection({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`});fd.setOptions({model:'short',minDetectionConfidence:.55});
      const input=document.createElement('canvas');input.width=im.naturalWidth;input.height=im.naturalHeight;input.getContext('2d').drawImage(im,0,0);
-     const out=await new Promise((resolve,reject)=>{fd.onResults(resolve);fd.send({image:input}).catch(reject)});
-     const det=out.detections&&out.detections[0];
-     if(!det||!det.boundingBox)return null;
-     const b=det.boundingBox;
-     // MediaPipe versions may expose normalized or pixel-like values; normalize safely.
-     const raw={x:b.xCenter-b.width/2,y:b.yCenter-b.height/2,w:b.width,h:b.height};
-     const normalized = Math.max(Math.abs(raw.x),Math.abs(raw.y),Math.abs(raw.w),Math.abs(raw.h)) <= 1.5;
-     return normalized
-       ? {x:Math.max(0,raw.x),y:Math.max(0,raw.y),w:raw.w,h:raw.h}
-       : {x:Math.max(0,raw.x/im.naturalWidth),y:Math.max(0,raw.y/im.naturalHeight),w:raw.w/im.naturalWidth,h:raw.h/im.naturalHeight};
+     const out=await new Promise((resolve,reject)=>{fd.onResults(resolve);fd.send({image:input}).catch(reject)});const det=out.detections&&out.detections[0];if(!det||!det.boundingBox)return null;
+     const b=det.boundingBox,raw={x:b.xCenter-b.width/2,y:b.yCenter-b.height/2,w:b.width,h:b.height},normalized=Math.max(Math.abs(raw.x),Math.abs(raw.y),Math.abs(raw.w),Math.abs(raw.h))<=1.5;
+     return normalized?{x:Math.max(0,raw.x),y:Math.max(0,raw.y),w:raw.w,h:raw.h}:{x:Math.max(0,raw.x/im.naturalWidth),y:Math.max(0,raw.y/im.naturalHeight),w:raw.w/im.naturalWidth,h:raw.h/im.naturalHeight};
    }catch(e){return null}
  }
-
- async function detectAlignment(im){
-   let roll=0;
+ async function detectRoll(im){
+   if(!poseToggle.checked)return 0;
    try{
      if(!window.FaceMesh){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-     const fm=new FaceMesh({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-     fm.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
+     const fm=new FaceMesh({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});fm.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
      const input=document.createElement('canvas');input.width=im.naturalWidth;input.height=im.naturalHeight;input.getContext('2d').drawImage(im,0,0);
-     const out=await new Promise((resolve,reject)=>{fm.onResults(resolve);fm.send({image:input}).catch(reject)});
-     const lm=out.multiFaceLandmarks&&out.multiFaceLandmarks[0];
-     if(lm){
-       const L=lm[33], R=lm[263];
-       roll=Math.atan2((R.y-L.y)*im.naturalHeight,(R.x-L.x)*im.naturalWidth);
-     }
-   }catch(e){}
+     const out=await new Promise((resolve,reject)=>{fm.onResults(resolve);fm.send({image:input}).catch(reject)});const lm=out.multiFaceLandmarks&&out.multiFaceLandmarks[0];if(!lm)return 0;
+     const L=lm[33],R=lm[263];let roll=Math.atan2((R.y-L.y)*im.naturalHeight,(R.x-L.x)*im.naturalWidth);
+     return Math.max(-7*Math.PI/180,Math.min(7*Math.PI/180,roll));
+   }catch(e){return 0}
+ }
+ function rotateImageAsync(im,angle){if(!angle)return Promise.resolve(im);return new Promise(resolve=>{const c=document.createElement('canvas'),ctx=c.getContext('2d');c.width=im.naturalWidth;c.height=im.naturalHeight;ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.translate(c.width/2,c.height/2);ctx.rotate(-angle);ctx.drawImage(im,-c.width/2,-c.height/2);const out=new Image();out.onload=()=>resolve(out);out.src=c.toDataURL('image/jpeg',.98)})}
+ function sharpen(ctx,w,h,amount){if(!amount)return;const img=ctx.getImageData(0,0,w,h),d=img.data,copy=new Uint8ClampedArray(d),a=amount/100;for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let k=0;k<3;k++){const v=copy[i+k]*(1+4*a)-a*(copy[i-4+k]+copy[i+4+k]+copy[i-w*4+k]+copy[i+w*4+k]);d[i+k]=Math.max(0,Math.min(255,v))}}ctx.putImageData(img,0,0)}
+ async function replaceBackgroundNatural(c,sourceCanvas,W,H){
    try{
-     if(!window.Pose){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-     const pose=new Pose({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-     pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
-     const input=document.createElement('canvas');input.width=im.naturalWidth;input.height=im.naturalHeight;input.getContext('2d').drawImage(im,0,0);
-     const out=await new Promise((resolve,reject)=>{pose.onResults(resolve);pose.send({image:input}).catch(reject)});
-     const p=out.poseLandmarks;
-     if(p){
-       const L=p[11],R=p[12];
-       if(L&&R&&L.visibility>.45&&R.visibility>.45){
-         const shoulderRoll=Math.atan2((R.y-L.y)*im.naturalHeight,(R.x-L.x)*im.naturalWidth);
-         // Blend face and shoulder alignment, but keep corrections subtle.
-         roll = roll ? (roll*.65 + shoulderRoll*.35) : shoulderRoll;
-       }
-     }
-   }catch(e){}
-   // Never rotate a photo by more than 12 degrees automatically.
-   return Math.max(-12*Math.PI/180,Math.min(12*Math.PI/180,roll));
+     if(!window.SelfieSegmentation){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+     const seg=new SelfieSegmentation({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});seg.setOptions({modelSelection:1});
+     const out=await new Promise((resolve,reject)=>{seg.onResults(resolve);seg.send({image:sourceCanvas}).catch(reject)});
+     const mask=document.createElement('canvas');mask.width=W;mask.height=H;const mc=mask.getContext('2d');mc.drawImage(out.segmentationMask,0,0,W,H);
+     const md=mc.getImageData(0,0,W,H),d=md.data;
+     for(let i=0;i<d.length;i+=4){let a=(d[i]/255-.34)/.22;a=Math.max(0,Math.min(1,a));a=a*a*(3-2*a);d[i+3]=Math.round(a*255)}
+     mc.putImageData(md,0,0);
+     const layer=document.createElement('canvas');layer.width=W;layer.height=H;const lc=layer.getContext('2d');lc.drawImage(sourceCanvas,0,0);lc.globalCompositeOperation='destination-in';lc.drawImage(mask,0,0);
+     c.clearRect(0,0,W,H);c.fillStyle=bg;c.fillRect(0,0,W,H);c.drawImage(layer,0,0);return true;
+   }catch(e){return false}
  }
- function rotateImage(im,angle){
-   if(!angle) return im;
-   const c=document.createElement('canvas'), ctx=c.getContext('2d');
-   c.width=im.naturalWidth; c.height=im.naturalHeight;
-   ctx.translate(c.width/2,c.height/2); ctx.rotate(-angle); ctx.drawImage(im,-c.width/2,-c.height/2);
-   const out=new Image(); out.src=c.toDataURL('image/jpeg',.98);
-   return out;
- }
- function sharpen(ctx,w,h,amount){if(!amount)return; const img=ctx.getImageData(0,0,w,h),d=img.data,copy=new Uint8ClampedArray(d); const a=amount/100; for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let k=0;k<3;k++){const v=copy[i+k]* (1+4*a) - a*(copy[i-4+k]+copy[i+4+k]+copy[i-w*4+k]+copy[i+w*4+k]);d[i+k]=Math.max(0,Math.min(255,v))}} ctx.putImageData(img,0,0)}
  async function segmentAndRender(){
-   if(!photo){alert('पहिले Photo निवडा.');return false}
-   status.textContent='Face / Shoulder alignment तपासत आहे...';
-   const W=413,H=531; fitCanvas(pv,W,H); pc.clearRect(0,0,W,H);
-   // Keep the original pixels/face. Pose landmarks are used only as guidance;
-   // never rotate or synthesize the person's body in this browser-only tool.
-   const working=photo;
-   const face=await detectFace(working);
-   drawIdentityCrop(pc,working,W,H,face);
-   // Use browser-native subject segmentation when available through MediaPipe.
-   try{
-    if(!window.SelfieSegmentation){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-    const seg=new SelfieSegmentation({locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`}); seg.setOptions({modelSelection:1});
-    const input=document.createElement('canvas');input.width=W;input.height=H;input.getContext('2d').drawImage(pv,0,0);
-    const out=await new Promise((resolve,reject)=>{seg.onResults(resolve);seg.send({image:input}).catch(reject)});
-    const personLayer=document.createElement('canvas');personLayer.width=W;personLayer.height=H;const plc=personLayer.getContext('2d');plc.drawImage(input,0,0);plc.globalCompositeOperation='destination-in';plc.drawImage(out.segmentationMask,0,0,W,H);pc.clearRect(0,0,W,H);pc.fillStyle=bg;pc.fillRect(0,0,W,H);pc.drawImage(personLayer,0,0);
-   }catch(e){
-    // If segmentation library cannot load, keep the original photo rather than changing the face.
-    pc.clearRect(0,0,W,H);drawIdentityCrop(pc,working,W,H,face);
-    status.textContent='Background AI उपलब्ध नाही; photo original ठेवला आहे.';
-   }
-   sharpen(pc,W,H,+enhance.value); result=pv.toDataURL('image/jpeg',0.96);
-   sc.fillStyle='#fff';sc.fillRect(0,0,1200,1800);const cw=413,ch=531,gx=90,gy=48;const xs=[Math.round((1200-2*cw-gx)/2),Math.round((1200-2*cw-gx)/2)+cw+gx];const y0=60;let n=0;for(let r=0;r<3;r++)for(let col=0;col<2;col++){sc.drawImage(pv,xs[col],y0+r*(ch+gy),cw,ch);n++}
-   status.textContent='Ready — 4×6 वर 6 Identity Photos तयार.';return true;
+   if(!photo){alert('पहिले Photo निवडा.');return false}status.textContent='Natural ID crop तयार करत आहे...';
+   const W=413,H=531;fitCanvas(pv,W,H);pc.clearRect(0,0,W,H);
+   const roll=await detectRoll(photo),working=await rotateImageAsync(photo,roll),face=await detectFace(working);drawIdentityCrop(pc,working,W,H,face);
+   const cropCanvas=document.createElement('canvas');cropCanvas.width=W;cropCanvas.height=H;cropCanvas.getContext('2d').drawImage(pv,0,0);
+   const ok=await replaceBackgroundNatural(pc,cropCanvas,W,H);
+   if(!ok){pc.clearRect(0,0,W,H);drawIdentityCrop(pc,working,W,H,face);status.textContent='Background processing उपलब्ध नाही; original photo ठेवला आहे.'}
+   sharpen(pc,W,H,Math.min(10,+enhance.value));result=pv.toDataURL('image/jpeg',.96);
+   sc.fillStyle='#fff';sc.fillRect(0,0,1200,1800);const cw=413,ch=531,gx=90,gy=48,x0=Math.round((1200-2*cw-gx)/2),y0=60;for(let r=0;r<3;r++)for(let col=0;col<2;col++)sc.drawImage(pv,x0+col*(cw+gx),y0+r*(ch+gy),cw,ch);
+   status.textContent='Ready — natural 35×45 mm Identity Photos तयार.';return true;
  }
- blue.onclick=()=>{bg='#1677c8';blue.classList.add('idactive');red.classList.remove('idactive')};red.onclick=()=>{bg='#d51f2a';red.classList.add('idactive');blue.classList.remove('idactive')};f.onchange=load;process.onclick=segmentAndRender;save.onclick=async()=>{if(!result){if(!(await segmentAndRender()))return} const a=document.createElement('a');a.download='Identity_Photo_4x6_HD.jpg';a.href=sheet.toDataURL('image/jpeg',0.97);document.body.appendChild(a);a.click();a.remove()};
+ blue.onclick=()=>{bg='#1677c8';blue.classList.add('idactive');red.classList.remove('idactive')};red.onclick=()=>{bg='#d51f2a';red.classList.add('idactive');blue.classList.remove('idactive')};f.onchange=load;process.onclick=segmentAndRender;save.onclick=async()=>{if(!result){if(!(await segmentAndRender()))return}const a=document.createElement('a');a.download='Identity_Photo_4x6_HD.jpg';a.href=sheet.toDataURL('image/jpeg',.97);document.body.appendChild(a);a.click();a.remove()};
 })();
 </script>
 
