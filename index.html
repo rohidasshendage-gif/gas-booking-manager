@@ -39,11 +39,11 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 }
 
 /* Identity Photo Tool — independent module */
-.idtool{margin:18px auto;max-width:1100px;padding:0 14px}.idpanel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}.idgrid{display:grid;grid-template-columns:340px 1fr;gap:16px}.idworkspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.idpreview{background:#fff;max-width:100%;max-height:70vh;display:block}..idcontrols{display:grid;gap:10px}.bgbtns{display:flex;gap:8px}.bgbtns button{flex:1}.idactive{outline:3px solid #fff;outline-offset:2px}.idresult{margin-top:15px;background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.idresult canvas{width:100%;max-width:520px;display:block;margin:auto;background:#fff}.idhint{font-size:12px;color:var(--muted);line-height:1.5}.idstatus{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px}.idtools-title{font-size:17px;margin:0 0 12px}@media(max-width:800px){.idgrid{grid-template-columns:1fr}}
+.idtool{margin:18px auto;max-width:1100px;padding:0 14px}.idpanel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}.idgrid{display:grid;grid-template-columns:340px 1fr;gap:16px}.idworkspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.idpreview{background:#fff;max-width:100%;max-height:70vh;display:block}.idcontrols{display:grid;gap:10px}.bgbtns{display:flex;gap:8px}.bgbtns button{flex:1}.idactive{outline:3px solid #fff;outline-offset:2px}.idresult{margin-top:15px;background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.idresult canvas{width:100%;max-width:520px;display:block;margin:auto;background:#fff}.idhint{font-size:12px;color:var(--muted);line-height:1.5}.idstatus{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px}.idtools-title{font-size:17px;margin:0 0 12px}@media(max-width:800px){.idgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • AUTO CUT • FRONT / BACK • CARD GUIDE • 4×6 PRINT</div></div><button class="ghost" id="newBtn">＋ New Job</button></div></header>
+<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • AUTO CUT • FRONT / BACK • CARD GUIDE • 4×6 PRINT</div></div><div class="row" style="max-width:330px"><button class="ghost" id="goIdentity">📸 Identity Photo</button><button class="ghost" id="newBtn">＋ New Job</button></div></div></header>
 
 <main class="noPrint">
 <div class="grid">
@@ -676,5 +676,9 @@ window.addEventListener("resize",()=>{
  }
  blue.onclick=()=>{bg='#1677c8';blue.classList.add('idactive');red.classList.remove('idactive')};red.onclick=()=>{bg='#d51f2a';red.classList.add('idactive');blue.classList.remove('idactive')};f.onchange=load;process.onclick=segmentAndRender;save.onclick=async()=>{if(!result){if(!(await segmentAndRender()))return} const a=document.createElement('a');a.download='Identity_Photo_4x6_HD.jpg';a.href=sheet.toDataURL('image/jpeg',0.97);document.body.appendChild(a);a.click();a.remove()};
 })();
+</script>
+
+<script>
+document.getElementById("goIdentity").onclick=()=>document.getElementById("identityTool").scrollIntoView({behavior:"smooth",block:"start"});
 </script>
 </body></html>
