@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>ID Print Studio — Auto Cut</title>
+<style>
+:root{--bg:#06101d;--panel:#0d1b2d;--line:#263b55;--blue:#287cff;--text:#f5f7fb;--muted:#a9b7c9}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#050b13,#0d1b30);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:9;background:#07111fee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.head{max-width:1100px;margin:auto;padding:15px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.logo{font-size:24px;font-weight:850}.logo b{color:#438cff}.sub{font-size:12px;color:var(--muted)}
+main{max-width:1100px;margin:18px auto;padding:0 14px}.grid{display:grid;grid-template-columns:340px 1fr;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}
+h2{font-size:17px;margin:0 0 12px}.fileBtn,button{border:0;border-radius:12px;padding:12px 15px;background:var(--blue);color:#fff;font-weight:750;font-size:15px;cursor:pointer}
+.fileBtn{display:block;text-align:center;margin-bottom:9px}.ghost{background:#17283e;border:1px solid var(--line)}
+input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px solid var(--line);border-radius:11px;padding:12px;font-size:15px;margin:8px 0}
+.row{display:flex;gap:9px}.row>*{flex:1}.status{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px;margin-top:10px}
+.hint,.note{font-size:12px;color:var(--muted);line-height:1.5}.tabs{display:flex;gap:8px}.tabs>*{flex:1}
+.workspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
+#sourceWrap{position:relative;display:block;width:max-content;max-width:100%;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
+#sourceCanvas{width:auto;max-width:100%;max-height:68vh;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+#cropBox{position:absolute;display:none;border:3px solid #168cff;background:rgba(22,140,255,.10);box-sizing:border-box;touch-action:none;z-index:50;pointer-events:auto}
+.handle{position:absolute;width:20px;height:20px;background:#168cff;border:3px solid #fff;border-radius:50%;z-index:30;box-shadow:0 1px 5px rgba(0,0,0,.55);touch-action:none}
+.handle.tl{left:-12px;top:-12px}.handle.tr{right:-12px;top:-12px}.handle.bl{left:-12px;bottom:-12px}.handle.br{right:-12px;bottom:-12px}
+.handle.tm{left:50%;top:-12px;transform:translateX(-50%)}.handle.bm{left:50%;bottom:-12px;transform:translateX(-50%)}
+.handle.ml{left:-12px;top:50%;transform:translateY(-50%)}.handle.mr{right:-12px;top:50%;transform:translateY(-50%)}.handle.tl{cursor:nwse-resize}.handle.br{cursor:nwse-resize}.handle.tr{cursor:nesw-resize}.handle.bl{cursor:nesw-resize}.handle.tm{cursor:ns-resize}.handle.bm{cursor:ns-resize}.handle.ml{cursor:ew-resize}.handle.mr{cursor:ew-resize}
+.empty{color:#708096;text-align:center;padding:50px}
+.crops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.cropCard{background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.cropCard canvas{width:100%;background:#fff;display:block;aspect-ratio:85.6/53.98}
+.badge{display:inline-block;padding:5px 8px;border-radius:8px;background:#123d79;color:#bcd8ff;font-size:11px;margin-top:7px}
+#printSheet{display:none}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.crops{grid-template-columns:1fr}.workspace{min-height:330px}}
+@media print{
+ body{background:#fff!important;color:#000}.noPrint{display:none!important}
+ #printSheet{display:block!important;width:6in;height:4in;background:#fff;position:relative}
+ .printCard{position:absolute;width:3.3701in;height:2.1252in;overflow:hidden}.printCard img{width:100%;height:100%;object-fit:fill;display:block}
+ .p1{left:.08in;top:.08in}.p2{left:2.55in;top:.08in}.p3{left:.08in;top:1.77in}.p4{left:2.55in;top:1.77in}
+ @page{size:6in 4in;margin:0}
+}
+
+/* Identity Photo Tool — independent module */
+.idtool{margin:18px auto;max-width:1100px;padding:0 14px}.idpanel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}.idgrid{display:grid;grid-template-columns:340px 1fr;gap:16px}.idworkspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.idpreview{background:#fff;max-width:100%;max-height:70vh;display:block}.idcontrols{display:grid;gap:10px}.bgbtns{display:flex;gap:8px}.bgbtns button{flex:1}.idactive{outline:3px solid #fff;outline-offset:2px}.idresult{margin-top:15px;background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.idresult canvas{width:100%;max-width:520px;display:block;margin:auto;background:#fff}.idhint{font-size:12px;color:var(--muted);line-height:1.5}.idstatus{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px}.idtools-title{font-size:17px;margin:0 0 12px}@media(max-width:800px){.idgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="noPrint"><div class="head"><div><div class="logo">ID <b>PRINT STUDIO</b></div><div class="sub">PDF • IMAGE • AUTO CUT • FRONT / BACK • CARD GUIDE • 4×6 PRINT</div></div><div class="row" style="max-width:330px"><button class="ghost" id="newBtn">＋ New Job</button></div></div></header>
+
+<main class="noPrint">
+<div class="grid">
+<section class="panel">
+<h2>1. Document</h2>
+<label class="fileBtn" for="file">📄 Choose PDF / 🖼️ Image</label>
+<input id="file" type="file" accept=".pdf,application/pdf,image/*" hidden>
+<input id="password" type="password" placeholder="PDF password (जर असेल तर)">
+<div class="row"><button id="openBtn">Open</button><button class="ghost" id="autoBtn">✂️ Clear Crop</button></div><div class="row" style="margin-top:8px"><button class="ghost" id="newCrop">➕ New Crop</button></div>
+<div class="row" style="margin-top:8px"><button class="ghost" id="prev">‹</button><button class="ghost" id="next">›</button></div>
+<select id="page" disabled><option>Page</option></select>
+<div class="status" id="status">PDF / Image निवडा.</div>
+<div class="note">PDF / Image उघडल्यानंतर एक crop box दिसेल. Box हलवा किंवा 8 handles वापरून अचूक आकार सेट करा.</div>
+<hr style="border-color:#1d2b40;margin:16px 0">
+<h2>2. Crop</h2>
+<div class="tabs"><button class="active tab" data-side="front">FRONT</button><button class="ghost tab" data-side="back">BACK</button></div>
+<div class="hint" style="margin-top:9px">FRONT किंवा BACK निवडा. Image वर बोटाने drag = नवीन crop. Crop च्या आत drag = box हलवा. 8 निळे handles = अचूक आकार.</div>
+
+<div style="margin-top:13px;padding:12px;background:#081423;border:1px solid var(--line);border-radius:12px">
+  <div style="font-weight:800;font-size:14px">☀️ Photo Brightness</div>
+  <div class="row" style="margin-top:8px">
+    <button id="fullBrightBtn" class="ghost">पूर्ण Photo</button>
+    <button id="personBrightBtn" class="ghost">👤 Person Photo</button>
+  </div>
+  <div class="hint" style="margin-top:7px" id="brightModeText">पूर्ण Photo निवडले आहे.</div>
+  <input id="brightness" type="range" min="-60" max="60" value="0" step="1" style="width:100%;margin:10px 0 5px;accent-color:#287cff">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span class="hint">Dark ← Bright →</span>
+    <span id="brightnessValue" class="badge" style="margin-top:0">0</span>
+  </div>
+  <button id="resetBrightness" class="ghost" style="width:100%;margin-top:8px;padding:9px">↺ Reset Brightness</button>
+  <div class="hint" style="margin-top:7px">Person Photo निवडल्यानंतर Aadhaar/card मधील फक्त व्यक्तीचा photo area image वर drag करून निवडा.</div>
+</div>
+<hr style="border-color:#1d2b40;margin:16px 0">
+<h2>3. Print</h2>
+<button id="saveBtn" style="width:100%">💾 Save 4×6 Image</button>
+<div class="hint" style="margin-top:8px">FRONT वर आणि BACK खाली असलेली 4×6 PNG image सेव्ह होईल.</div>
+</section>
+
+<section class="panel">
+<h2>Crop Workspace</h2>
+<div class="workspace"><div class="empty" id="empty">PDF / Image उघडल्यानंतर येथे दिसेल.<br><br>👆 Crop box हलवा / handles ने आकार बदला</div><div id="sourceWrap"><canvas id="sourceCanvas"></canvas><div id="personBox"></div><div id="cropBox"><span class="handle tl" data-dir="tl"></span><span class="handle tm" data-dir="t"></span><span class="handle tr" data-dir="tr"></span><span class="handle ml" data-dir="l"></span><span class="handle mr" data-dir="r"></span><span class="handle bl" data-dir="bl"></span><span class="handle bm" data-dir="b"></span><span class="handle br" data-dir="br"></span></div></div></div>
+<div class="crops">
+<div class="cropCard"><div class="hint">FRONT • 85.60 × 53.98 mm</div><canvas id="frontPreview" width="1011" height="638"></canvas><div id="frontBadge" class="badge">Not selected</div></div>
+<div class="cropCard"><div class="hint">BACK • 85.60 × 53.98 mm</div><canvas id="backPreview" width="1011" height="638"></canvas><div id="backBadge" class="badge">Not selected</div></div>
+</div>
+</section>
+</div>
+</main>
+<div id="printSheet">
+<div class="printCard p1"><img id="pi1"></div><div class="printCard p2"><img id="pi2"></div>
+<div class="printCard p3"><img id="pi3"></div><div class="printCard p4"><img id="pi4"></div>
+</div>
+
+<script>
+let pdfJsReady=null;
+function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement("script");s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error("PDF.js load failed"));document.head.appendChild(s);});}
+async function ensurePdfJs(){
+  if(window.pdfjsLib)return window.pdfjsLib;
+  if(pdfJsReady)return pdfJsReady;
+  const sources=[
+    ["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js","https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"],
+    ["https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js","https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"],
+    ["https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js","https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js"]
+  ];
+  pdfJsReady=(async()=>{
+    let last=null;
+    for(const [main,worker] of sources){
+      try{await loadScript(main);if(window.pdfjsLib){window.pdfjsLib.GlobalWorkerOptions.workerSrc=worker;return window.pdfjsLib;}}catch(e){last=e;}
+    }
+    throw last||new Error("PDF.js unavailable");
+  })();
+  return pdfJsReady;
+}
+const $=id=>document.getElementById(id);
+let file=null,pdf=null,pageNum=1,side="front",img=null,selection=null,drag=null,baseData=null;
+const src=$("sourceCanvas"),ctx=src.getContext("2d"),fp=$("frontPreview"),bp=$("backPreview");
+const cropBox=$("cropBox"), sourceWrap=$("sourceWrap");
+function syncSourceWrap(){
+  if(src.width && src.height){
+    const r=src.getBoundingClientRect();
+    sourceWrap.style.width=r.width+"px";
+    sourceWrap.style.height=r.height+"px";
+  }
+}
+let boxMode=null,boxStart=null,boxRectScreen=null;
+let brightness={front:0,back:0}, brightnessMode="full";
+let personRect=null, drawingPerson=null;
+
+$("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
+$("newBtn").onclick=()=>location.reload();
+
+async function openFile(){
+ if(!file){alert("पहिले PDF किंवा Image निवडा.");return}
+ try{
+  if(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")){
+   $("status").textContent="PDF engine loading...";
+   const lib=await ensurePdfJs();
+   $("status").textContent="PDF loading...";
+   const opts={data:new Uint8Array(await file.arrayBuffer())};
+   if($("password").value)opts.password=$("password").value;
+   const loadingTask=lib.getDocument(opts);
+   loadingTask.onPassword=(updatePassword)=>{
+     const entered=$("password").value||prompt("PDF password टाका:");
+     if(entered===null||entered===undefined){loadingTask.destroy();return;}
+     $("password").value=entered;
+     updatePassword(entered);
+   };
+   pdf=await loadingTask.promise;
+   $("page").innerHTML="";
+   for(let i=1;i<=pdf.numPages;i++){const o=document.createElement("option");o.value=i;o.textContent="Page "+i;$("page").appendChild(o)}
+   $("page").disabled=false;pageNum=1;$("page").value=1;await renderPage();
+   requestAnimationFrame(()=>requestAnimationFrame(initDefaultCrop));
+  }else if(file.type.startsWith("image/")){
+   pdf=null;$("page").disabled=true;img=new Image();
+   img.onload=()=>{drawImage();$("status").textContent="Image loaded.";requestAnimationFrame(()=>requestAnimationFrame(initDefaultCrop))};
+   img.src=URL.createObjectURL(file);
+  }else throw Error("unsupported");
+ }catch(e){
+   console.error(e);
+   const msg=(e && e.name==="PasswordException")
+     ?"PDF password चुकीचा आहे किंवा password आवश्यक आहे."
+     :"PDF उघडता आला नाही. PDF file/Internet तपासा.";
+   alert(msg);
+   $("status").textContent="Open failed";
+ }
+}
+async function renderPage(){
+ const p=await pdf.getPage(pageNum),b=p.getViewport({scale:1}),scale=Math.min(3.2,3200/Math.max(b.width,b.height)),v=p.getViewport({scale});
+ src.width=Math.ceil(v.width);src.height=Math.ceil(v.height);await p.render({canvasContext:ctx,viewport:v}).promise;
+ baseData=ctx.getImageData(0,0,src.width,src.height);img=null;selection=null;$("empty").style.display="none";
+ $("status").textContent=`PDF Page ${pageNum} / ${pdf.numPages}`;
+}
+function drawImage(){
+ const s=Math.min(1,3200/Math.max(img.naturalWidth,img.naturalHeight));src.width=Math.ceil(img.naturalWidth*s);src.height=Math.ceil(img.naturalHeight*s);
+ ctx.drawImage(img,0,0,src.width,src.height);baseData=ctx.getImageData(0,0,src.width,src.height);selection=null;$("empty").style.display="none";
+}
+$("openBtn").onclick=openFile;
+$("page").onchange=async e=>{pageNum=+e.target.value;window.frontRect=null;window.backRect=null;await renderPage();initDefaultCrop()};
+$("prev").onclick=async()=>{if(pdf&&pageNum>1){pageNum--;window.frontRect=null;window.backRect=null;$("page").value=pageNum;await renderPage();initDefaultCrop()}};
+$("next").onclick=async()=>{if(pdf&&pageNum<pdf.numPages){pageNum++;window.frontRect=null;window.backRect=null;$("page").value=pageNum;await renderPage();initDefaultCrop()}};
+
+function restore(){if(baseData)ctx.putImageData(baseData,0,0)}
+function point(e){const r=src.getBoundingClientRect();return{x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height}}
+function drawOverlay(){restore();}
+function currentRect(){
+ return side==="front"?window.frontRect:window.backRect;
+}
+
+function showCropBox(r){
+  if(!r || !src.width || !src.height){
+    cropBox.style.display="none";
+    return;
+  }
+  const sr=src.getBoundingClientRect();
+  const wr=sourceWrap.getBoundingClientRect();
+  const sx=sr.width/src.width;
+  const sy=sr.height/src.height;
+
+  // Position exactly over the displayed canvas, even when CSS scales it.
+  cropBox.style.display="block";
+  cropBox.style.left=((sr.left-wr.left)+(r.x*sx))+"px";
+  cropBox.style.top=((sr.top-wr.top)+(r.y*sy))+"px";
+  cropBox.style.width=Math.max(20,r.w*sx)+"px";
+  cropBox.style.height=Math.max(20,r.h*sy)+"px";
+}
+function defaultCropRect(){
+  const ratio=85.60/53.98;
+  let w=src.width*0.55;
+  let h=w/ratio;
+  if(h>src.height*0.55){
+    h=src.height*0.55;
+    w=h*ratio;
+  }
+  return {x:(src.width-w)/2,y:(src.height-h)/2,w,h};
+}
+function initDefaultCrop(){
+  if(!src.width || !src.height)return;
+  syncSourceWrap();
+  const r=defaultCropRect();
+  if(side==="front")window.frontRect=r;
+  else window.backRect=r;
+  updatePreview(side,r,"MANUAL • Adjust Box");
+  showCropBox(r);
+  $("status").textContent=(side==="front"?"FRONT":"BACK")+" crop box तयार आहे — हलवा किंवा handles drag करा.";
+}
+
+function saveRect(r,label="MANUAL • Box"){
+ if(side==="front")window.frontRect=r;else window.backRect=r;
+ updatePreview(side,r,label);
+ showCropBox(r);
+}
+function pointerOnCanvas(e){
+ const r=src.getBoundingClientRect();
+ return {x:(e.clientX-r.left)*src.width/r.width,y:(e.clientY-r.top)*src.height/r.height};
+}
+
+let activeResize=null;
+let drawingCrop=null;
+let movingCrop=null;
+
+function clampRect(r){
+  r.w=Math.max(8,Math.min(r.w,src.width));
+  r.h=Math.max(8,Math.min(r.h,src.height));
+  r.x=Math.max(0,Math.min(r.x,src.width-r.w));
+  r.y=Math.max(0,Math.min(r.y,src.height-r.h));
+  return r;
+}
+
+function beginResize(e, dir){
+  e.preventDefault(); e.stopPropagation();
+  const r=currentRect(); if(!r)return;
+  activeResize={
+    dir,
+    pointerId:e.pointerId,
+    start:pointerOnCanvas(e),
+    rect:{...r},
+    latest:{...r}
+  };
+  try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}
+}
+
+function resizeMove(e){
+  if(!activeResize)return;
+  e.preventDefault(); e.stopPropagation();
+  const a=activeResize, p=pointerOnCanvas(e);
+  const dx=p.x-a.start.x, dy=p.y-a.start.y, o=a.rect;
+  let r={...o};
+
+  if(a.dir.includes("l")){r.x=o.x+dx; r.w=o.w-dx}
+  if(a.dir.includes("r")){r.w=o.w+dx}
+  if(a.dir.includes("t")){r.y=o.y+dy; r.h=o.h-dy}
+  if(a.dir.includes("b")){r.h=o.h+dy}
+
+  const min=20;
+  if(r.w<min){
+    if(a.dir.includes("l")) r.x=o.x+o.w-min;
+    r.w=min;
+  }
+  if(r.h<min){
+    if(a.dir.includes("t")) r.y=o.y+o.h-min;
+    r.h=min;
+  }
+  r=clampRect(r);
+  a.latest=r;
+  showCropBox(r);
+  updatePreview(side,r,"ADJUSTING");
+}
+
+function finishResize(e){
+  if(!activeResize)return;
+  e.preventDefault(); e.stopPropagation();
+  const r=activeResize.latest;
+  activeResize=null;
+  if(r)saveRect(r,"CROP SET");
+}
+
+cropBox.querySelectorAll(".handle").forEach(h=>{
+  h.addEventListener("pointerdown",e=>beginResize(e,h.dataset.dir));
+});
+
+/* Move an existing crop box by touching/clicking inside it. */
+cropBox.addEventListener("pointerdown",e=>{
+  if(e.target.classList && e.target.classList.contains("handle"))return;
+  e.preventDefault(); e.stopPropagation();
+  const r=currentRect(); if(!r)return;
+  movingCrop={
+    pointerId:e.pointerId,
+    start:pointerOnCanvas(e),
+    rect:{...r},
+    latest:{...r}
+  };
+  try{cropBox.setPointerCapture(e.pointerId)}catch(_){}
+});
+
+cropBox.addEventListener("pointermove",e=>{
+  if(activeResize){resizeMove(e);return}
+  if(!movingCrop)return;
+  e.preventDefault(); e.stopPropagation();
+  const p=pointerOnCanvas(e), o=movingCrop.rect;
+  const dx=p.x-movingCrop.start.x, dy=p.y-movingCrop.start.y;
+  const r={
+    ...o,
+    x:Math.max(0,Math.min(o.x+dx,src.width-o.w)),
+    y:Math.max(0,Math.min(o.y+dy,src.height-o.h))
+  };
+  movingCrop.latest=r;
+  showCropBox(r);
+  updatePreview(side,r,"MOVING");
+});
+
+cropBox.addEventListener("pointerup",e=>{
+  if(activeResize){finishResize(e);return}
+  if(movingCrop){
+    e.preventDefault(); e.stopPropagation();
+    const r=movingCrop.latest;
+    movingCrop=null;
+    if(r)saveRect(r,"CROP SET");
+  }
+});
+
+cropBox.addEventListener("pointercancel",()=>{
+  activeResize=null;
+  movingCrop=null;
+});
+
+/* Select the person's photo area for brightness-only editing. */
+src.addEventListener("pointerdown",e=>{
+  if(brightnessMode!=="person" || !src.width || !src.height)return;
+  e.preventDefault(); e.stopPropagation();
+  const p=pointerOnCanvas(e);
+  drawingPerson={start:p,latest:{x:p.x,y:p.y,w:1,h:1}};
+  showPersonBox(drawingPerson.latest);
+});
+src.addEventListener("pointermove",e=>{
+  if(!drawingPerson)return;
+  e.preventDefault(); e.stopPropagation();
+  const p=pointerOnCanvas(e), s=drawingPerson.start;
+  drawingPerson.latest=clampRect({
+    x:Math.min(s.x,p.x), y:Math.min(s.y,p.y),
+    w:Math.abs(p.x-s.x), h:Math.abs(p.y-s.y)
+  });
+  showPersonBox(drawingPerson.latest);
+  const r=currentRect();
+  if(r) drawPreview(side,r);
+});
+src.addEventListener("pointerup",e=>{
+  if(!drawingPerson)return;
+  e.preventDefault(); e.stopPropagation();
+  const r=drawingPerson.latest;
+  drawingPerson=null;
+  if(r && r.w>=10 && r.h>=10){
+    personRect=r;
+    showPersonBox(r);
+    const cr=currentRect(); if(cr) drawPreview(side,cr);
+    $("status").textContent="Person Photo area set — आता brightness बदलू शकता.";
+  }
+});
+src.addEventListener("pointercancel",()=>{
+  if(drawingPerson){drawingPerson=null;showPersonBox(personRect);}
+});
+
+/* Draw a NEW crop directly on the image. */
+src.addEventListener("pointerdown",e=>{
+  if(brightnessMode==="person")return;
+  if(!src.width || !src.height)return;
+  e.preventDefault();
+  const p=pointerOnCanvas(e);
+  drawingCrop={
+    pointerId:e.pointerId,
+    start:p,
+    latest:{x:p.x,y:p.y,w:1,h:1}
+  };
+  try{src.setPointerCapture(e.pointerId)}catch(_){}
+  cropBox.style.display="block";
+  showCropBox(drawingCrop.latest);
+});
+
+src.addEventListener("pointermove",e=>{
+  if(!drawingCrop)return;
+  e.preventDefault();
+  const p=pointerOnCanvas(e), s=drawingCrop.start;
+  const r={
+    x:Math.min(s.x,p.x),
+    y:Math.min(s.y,p.y),
+    w:Math.abs(p.x-s.x),
+    h:Math.abs(p.y-s.y)
+  };
+  drawingCrop.latest=clampRect(r);
+  showCropBox(drawingCrop.latest);
+  if(drawingCrop.latest.w>8 && drawingCrop.latest.h>8)
+    updatePreview(side,drawingCrop.latest,"DRAWING");
+});
+
+function finishDrawing(e){
+  if(!drawingCrop)return;
+  e.preventDefault();
+  const r=drawingCrop.latest;
+  drawingCrop=null;
+  if(r && r.w>=20 && r.h>=20){
+    saveRect(r,"CROP SET");
+  }else{
+    initDefaultCrop();
+  }
+}
+src.addEventListener("pointerup",finishDrawing);
+src.addEventListener("pointercancel",()=>{drawingCrop=null;initDefaultCrop()});
+
+/* Keep the crop box aligned after resize/scroll/orientation changes. */
+document.addEventListener("pointermove",e=>{
+  if(activeResize)resizeMove(e);
+},{passive:false});
+document.addEventListener("pointerup",e=>{
+  if(activeResize)finishResize(e);
+},{passive:false});
+
+function updateBrightnessUI(){
+  const v=brightness[side]||0;
+  $("brightness").value=v;
+  $("brightnessValue").textContent=(v>0?"+":"")+v;
+  $("brightModeText").textContent=brightnessMode==="full"
+    ?"पूर्ण Photo निवडले आहे."
+    :"👤 Person Photo निवडले आहे — image वर व्यक्तीचा photo area drag करा.";
+}
+function showPersonBox(r){
+  if(!r || !src.width || !src.height){
+    $("personBox").style.display="none"; return;
+  }
+  const sr=src.getBoundingClientRect(), wr=sourceWrap.getBoundingClientRect();
+  const sx=sr.width/src.width, sy=sr.height/src.height;
+  $("personBox").style.display="block";
+  $("personBox").style.left=((sr.left-wr.left)+r.x*sx)+"px";
+  $("personBox").style.top=((sr.top-wr.top)+r.y*sy)+"px";
+  $("personBox").style.width=Math.max(5,r.w*sx)+"px";
+  $("personBox").style.height=Math.max(5,r.h*sy)+"px";
+}
+function drawPreview(which,r){
+  if(!r||r.w<5||r.h<5)return;
+  const out=which==="front"?fp:bp,oc=out.getContext("2d");
+  oc.clearRect(0,0,out.width,out.height);
+  oc.fillStyle="#fff"; oc.fillRect(0,0,out.width,out.height);
+  oc.save();
+  oc.imageSmoothingEnabled=true;
+  oc.imageSmoothingQuality="high";
+  const full=brightnessMode==="full";
+  if(full) oc.filter=`brightness(${100+(brightness[which]||0)}%)`;
+  oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height);
+  oc.restore();
+
+  // Brighten only the selected person-photo rectangle.
+  if(!full && personRect && personRect.w>5 && personRect.h>5){
+    const ix=Math.max(r.x,personRect.x), iy=Math.max(r.y,personRect.y);
+    const ax=Math.min(r.x+r.w,personRect.x+personRect.w), ay=Math.min(r.y+r.h,personRect.y+personRect.h);
+    if(ax>ix && ay>iy){
+      const ox=(ix-r.x)*out.width/r.w, oy=(iy-r.y)*out.height/r.h;
+      const ow=(ax-ix)*out.width/r.w, oh=(ay-iy)*out.height/r.h;
+      oc.save();
+      oc.imageSmoothingEnabled=true;
+      oc.imageSmoothingQuality="high";
+      oc.filter=`brightness(${100+(brightness[which]||0)}%)`;
+      oc.drawImage(src,ix,iy,ax-ix,ay-iy,ox,oy,ow,oh);
+      oc.restore();
+    }
+  }
+}
+function updatePreview(which,r,label){
+  if(!r||r.w<5||r.h<5)return;
+  restore();
+  drawPreview(which,r);
+  $(which==="front"?"frontBadge":"backBadge").textContent=label;
+}
+function setCrop(which,r,label){if(which==="front")window.frontRect=r;else window.backRect=r;updatePreview(which,r,label)}
+
+$("newCrop").onclick=()=>{
+  if(side==="front")window.frontRect=null;else window.backRect=null;
+  restore();
+  initDefaultCrop();
+};
+
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  side=b.dataset.side;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  personRect=null;
+  showPersonBox(null);
+  updateBrightnessUI();
+  if(currentRect()){ showCropBox(currentRect()); drawPreview(side,currentRect()); }
+  else initDefaultCrop();
+});
+
+function findLines(){
+ // Detect long dark border/cut lines using projection of grayscale darkness.
+ const w=src.width,h=src.height,data=baseData.data;
+ const col=new Float32Array(w),row=new Float32Array(h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=(y*w+x)*4,g=(data[i]+data[i+1]+data[i+2])/3;
+   const dark=255-g;
+   if(dark>125){col[x]+=dark;row[y]+=dark}
+ }
+ function peaks(a,threshold,minGap){
+   let arr=[];for(let i=0;i<a.length;i++)if(a[i]>threshold)arr.push(i);
+   let groups=[];for(const p of arr){if(!groups.length||p-groups[groups.length-1][groups[groups.length-1].length-1]>minGap)groups.push([p]);else groups[groups.length-1].push(p)}
+   return groups.map(g=>Math.round(g.reduce((s,v)=>s+v,0)/g.length));
+ }
+ const xs=peaks(col,h*255*0.18,Math.max(5,w*0.008)),ys=peaks(row,w*255*0.18,Math.max(5,h*0.008));
+ return {xs,ys};
+}
+function autoCut(){
+ selection=null;
+ restore();
+ cropBox.style.display="none";
+ if(side==="front"){
+   window.frontRect=null;
+   const c=fp.getContext("2d"); c.clearRect(0,0,fp.width,fp.height);
+   $("frontBadge").textContent="Not selected";
+ }else{
+   window.backRect=null;
+   const c=bp.getContext("2d"); c.clearRect(0,0,bp.width,bp.height);
+   $("backBadge").textContent="Not selected";
+ }
+ $("status").textContent="Crop clear. FRONT/BACK निवडा आणि image वर बोटाने drag करा.";
+}
+$("autoBtn").onclick=autoCut;
+
+$("fullBrightBtn").onclick=()=>{
+  brightnessMode="full";
+  updateBrightnessUI();
+  const r=currentRect(); if(r)drawPreview(side,r);
+};
+$("personBrightBtn").onclick=()=>{
+  brightnessMode="person";
+  updateBrightnessUI();
+  $("status").textContent="Image वर व्यक्तीचा photo area drag करा.";
+  const r=currentRect(); if(r)drawPreview(side,r);
+};
+$("brightness").oninput=e=>{
+  brightness[side]=+e.target.value;
+  $("brightnessValue").textContent=(brightness[side]>0?"+":"")+brightness[side];
+  const r=currentRect(); if(r)drawPreview(side,r);
+};
+$("resetBrightness").onclick=()=>{
+  brightness[side]=0;
+  personRect=null;
+  showPersonBox(null);
+  updateBrightnessUI();
+  const r=currentRect(); if(r)drawPreview(side,r);
+};
+updateBrightnessUI();
+
+$("saveBtn").onclick=()=>{
+  if(!window.frontRect||!window.backRect){
+    alert("आधी FRONT आणि BACK crop सेट करा.");return;
+  }
+
+  // 4×6 inch portrait: 1200×1800 px at 300 DPI.
+  // Aadhaar card actual size = 85.60 × 53.98 mm.
+  // Both cards are kept at the same physical size; FRONT top, BACK bottom.
+  const W=1200,H=1800;
+  const MM_TO_PX=W/101.6;
+  const cardW=Math.round(85.60*MM_TO_PX);
+  const cardH=Math.round(53.98*MM_TO_PX);
+  const gap=Math.round(4*MM_TO_PX);
+  const x=Math.round((W-cardW)/2);
+  const totalH=cardH*2+gap;
+  const y1=Math.round((H-totalH)/2);
+  const y2=y1+cardH+gap;
+
+  const sheet=document.createElement("canvas");
+  sheet.width=W; sheet.height=H;
+  const c=sheet.getContext("2d");
+  c.fillStyle="#fff"; c.fillRect(0,0,W,H);
+  c.imageSmoothingEnabled=true;
+  c.imageSmoothingQuality="high";
+
+  c.drawImage(fp,x,y1,cardW,cardH);
+  c.drawImage(bp,x,y2,cardW,cardH);
+
+  const a=document.createElement("a");
+  a.download="ID_4x6_AADHAAR_FRONT_BACK.png";
+  a.href=sheet.toDataURL("image/png");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+window.addEventListener("resize",()=>{
+  if(typeof syncSourceWrap==="function")syncSourceWrap();
+  if(typeof currentRect==="function" && currentRect())showCropBox(currentRect());
+  if(typeof personRect!=="undefined" && personRect && typeof showPersonBox==="function")showPersonBox(personRect);
+});
+</script>
+</body></html>
