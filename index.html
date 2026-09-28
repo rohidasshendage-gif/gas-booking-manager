@@ -21,6 +21,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 #sourceWrap{position:relative;display:block;width:max-content;max-width:100%;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
 #sourceCanvas{width:auto;max-width:100%;max-height:68vh;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 #cropBox{position:absolute;display:none;border:3px solid #168cff;background:rgba(22,140,255,.10);box-sizing:border-box;touch-action:none;z-index:50;pointer-events:auto}
+#personBox{position:absolute;display:none;border:2px dashed #ffb020;background:rgba(255,176,32,.08);box-sizing:border-box;touch-action:none;z-index:40;pointer-events:none}
 .handle{position:absolute;width:20px;height:20px;background:#168cff;border:3px solid #fff;border-radius:50%;z-index:30;box-shadow:0 1px 5px rgba(0,0,0,.55);touch-action:none}
 .handle.tl{left:-12px;top:-12px}.handle.tr{right:-12px;top:-12px}.handle.bl{left:-12px;bottom:-12px}.handle.br{right:-12px;bottom:-12px}
 .handle.tm{left:50%;top:-12px;transform:translateX(-50%)}.handle.bm{left:50%;bottom:-12px;transform:translateX(-50%)}
@@ -72,6 +73,14 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
     <span id="brightnessValue" class="badge" style="margin-top:0">0</span>
   </div>
   <button id="resetBrightness" class="ghost" style="width:100%;margin-top:8px;padding:9px">↺ Reset Brightness</button>
+  <div style="font-weight:800;font-size:14px;margin-top:14px">◐ Photo Contrast</div>
+  <input id="contrast" type="range" min="-70" max="70" value="0" step="1" style="width:100%;margin:10px 0 5px;accent-color:#287cff">
+  <div style="display:flex;justify-content:space-between;align-items:center"><span class="hint">Low ← Contrast → High</span><span id="contrastValue" class="badge" style="margin-top:0">0</span></div>
+  <div style="font-weight:800;font-size:14px;margin-top:14px">👤 Aadhaar Photo Contrast</div>
+  <button id="selectPersonBtn" class="ghost" style="width:100%;margin-top:8px;padding:9px">👤 Aadhaar Photo Area Select करा</button>
+  <input id="personContrast" type="range" min="-70" max="70" value="0" step="1" style="width:100%;margin:10px 0 5px;accent-color:#ffb020">
+  <div style="display:flex;justify-content:space-between;align-items:center"><span class="hint">Low ← Person Contrast → High</span><span id="personContrastValue" class="badge" style="margin-top:0">0</span></div>
+  <div class="hint" id="personHint" style="margin-top:6px">पहिले Aadhaar मधील व्यक्तीचा photo area select करा.</div>
 </div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
@@ -127,6 +136,7 @@ function syncSourceWrap(){
 }
 let boxMode=null,boxStart=null,boxRectScreen=null;
 let brightness={front:0,back:0}, contrast={front:0,back:0}, personContrast={front:0,back:0}, brightnessMode="full";
+let personRect={front:null,back:null}, drawingPerson=null, selectingPerson=false;
 
 $("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
 $("newBtn").onclick=()=>location.reload();
@@ -347,9 +357,8 @@ cropBox.addEventListener("pointercancel",()=>{
 
 /* Draw a NEW crop directly on the image. */
 src.addEventListener("pointerdown",e=>{
-  if(!src.width || !src.height)return;
-  e.preventDefault();
-  const p=pointerOnCanvas(e);
+  if(!src.width || !src.height)return; e.preventDefault(); const p=pointerOnCanvas(e);
+  if(selectingPerson){ drawingPerson={pointerId:e.pointerId,start:p,latest:{x:p.x,y:p.y,w:1,h:1}}; try{src.setPointerCapture(e.pointerId)}catch(_){} showPersonBox(drawingPerson.latest); return; }
   drawingCrop={
     pointerId:e.pointerId,
     start:p,
@@ -361,6 +370,7 @@ src.addEventListener("pointerdown",e=>{
 });
 
 src.addEventListener("pointermove",e=>{
+  if(drawingPerson){ e.preventDefault(); const p=pointerOnCanvas(e),st=drawingPerson.start; drawingPerson.latest=clampRect({x:Math.min(st.x,p.x),y:Math.min(st.y,p.y),w:Math.abs(p.x-st.x),h:Math.abs(p.y-st.y)}); showPersonBox(drawingPerson.latest); return; }
   if(!drawingCrop)return;
   e.preventDefault();
   const p=pointerOnCanvas(e), s=drawingCrop.start;
@@ -377,6 +387,7 @@ src.addEventListener("pointermove",e=>{
 });
 
 function finishDrawing(e){
+  if(drawingPerson){ e.preventDefault(); const r=drawingPerson.latest; drawingPerson=null; if(r&&r.w>=10&&r.h>=10){ personRect[side]=r; selectingPerson=false; $("cropBox").style.pointerEvents="auto"; showPersonBox(r); updateBrightnessUI(); const cr=currentRect(); if(cr)drawPreview(side,cr); $("status").textContent="Aadhaar Photo area set. आता Person Contrast बदला."; } return; }
   if(!drawingCrop)return;
   e.preventDefault();
   const r=drawingCrop.latest;
@@ -388,7 +399,7 @@ function finishDrawing(e){
   }
 }
 src.addEventListener("pointerup",finishDrawing);
-src.addEventListener("pointercancel",()=>{drawingCrop=null;initDefaultCrop()});
+src.addEventListener("pointercancel",()=>{if(drawingPerson){drawingPerson=null;showPersonBox(null);updateBrightnessUI();return;} drawingCrop=null;initDefaultCrop()});
 
 /* Keep the crop box aligned after resize/scroll/orientation changes. */
 document.addEventListener("pointermove",e=>{
@@ -399,12 +410,13 @@ document.addEventListener("pointerup",e=>{
 },{passive:false});
 
 function updateBrightnessUI(){
-  const v=brightness[side]||0;
-  $("brightness").value=v;
-  $("brightnessValue").textContent=(v>0?"+":"")+v;
-  $("brightModeText").textContent=brightnessMode==="full"
-    ?"पूर्ण Photo निवडले आहे."
-    :"👤 Person Photo निवडले आहे — image वर व्यक्तीचा photo area drag करा.";
+  const v=brightness[side]||0, cv=contrast[side]||0, pv=personContrast[side]||0;
+  $("brightness").value=v; $("brightnessValue").textContent=(v>0?"+":"")+v;
+  $("contrast").value=cv; $("contrastValue").textContent=(cv>0?"+":"")+cv;
+  $("personContrast").value=pv; $("personContrastValue").textContent=(pv>0?"+":"")+pv;
+  $("brightModeText").textContent="पूर्ण Photo निवडले आहे.";
+  $("personHint").textContent=personRect[side]?"Aadhaar photo area selected — आता Person Contrast बदला.":"पहिले Aadhaar मधील व्यक्तीचा photo area select करा.";
+  $("selectPersonBtn").textContent=selectingPerson?"✋ आता Aadhaar Photo area drag करा":"👤 Aadhaar Photo Area Select करा";
 }
 function showPersonBox(r){
   if(!r || !src.width || !src.height){
@@ -419,33 +431,16 @@ function showPersonBox(r){
   $("personBox").style.height=Math.max(5,r.h*sy)+"px";
 }
 function drawPreview(which,r){
-  if(!r||r.w<5||r.h<5)return;
-  const out=which==="front"?fp:bp,oc=out.getContext("2d");
-  oc.clearRect(0,0,out.width,out.height);
-  oc.fillStyle="#fff"; oc.fillRect(0,0,out.width,out.height);
-  oc.save();
-  oc.imageSmoothingEnabled=true;
-  oc.imageSmoothingQuality="high";
-  const full=true;
-  if(full) oc.filter=`brightness(${100+(brightness[which]||0)}%) contrast(${100+(contrast[which]||0)}%)`;
-  oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height);
-  oc.restore();
-
-  // Brighten only the selected person-photo rectangle.
-  if(!full && personRect && personRect.w>5 && personRect.h>5){
-    const ix=Math.max(r.x,personRect.x), iy=Math.max(r.y,personRect.y);
-    const ax=Math.min(r.x+r.w,personRect.x+personRect.w), ay=Math.min(r.y+r.h,personRect.y+personRect.h);
-    if(ax>ix && ay>iy){
-      const ox=(ix-r.x)*out.width/r.w, oy=(iy-r.y)*out.height/r.h;
-      const ow=(ax-ix)*out.width/r.w, oh=(ay-iy)*out.height/r.h;
-      oc.save();
-      oc.imageSmoothingEnabled=true;
-      oc.imageSmoothingQuality="high";
-      oc.filter=`brightness(${100+(brightness[which]||0)}%)`;
-      oc.drawImage(src,ix,iy,ax-ix,ay-iy,ox,oy,ow,oh);
-      oc.restore();
-    }
+ if(!r||r.w<5||r.h<5)return; const out=which==="front"?fp:bp,oc=out.getContext("2d");
+ oc.clearRect(0,0,out.width,out.height); oc.fillStyle="#fff"; oc.fillRect(0,0,out.width,out.height);
+ const base=`brightness(${100+(brightness[which]||0)}%) contrast(${100+(contrast[which]||0)}%)`;
+ oc.save(); oc.imageSmoothingEnabled=true; oc.imageSmoothingQuality="high"; oc.filter=base; oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height); oc.restore();
+ const pr=personRect[which],pc=personContrast[which]||0; if(pr&&pr.w>5&&pr.h>5&&pc!==0){
+  const ix=Math.max(r.x,pr.x),iy=Math.max(r.y,pr.y),ax=Math.min(r.x+r.w,pr.x+pr.w),ay=Math.min(r.y+r.h,pr.y+pr.h); if(ax>ix&&ay>iy){
+   const ox=(ix-r.x)*out.width/r.w,oy=(iy-r.y)*out.height/r.h,ow=(ax-ix)*out.width/r.w,oh=(ay-iy)*out.height/r.h;
+   oc.save(); oc.imageSmoothingEnabled=true; oc.imageSmoothingQuality="high"; oc.filter=base+` contrast(${100+pc}%)`; oc.drawImage(src,ix,iy,ax-ix,ay-iy,ox,oy,ow,oh); oc.restore();
   }
+ }
 }
 function updatePreview(which,r,label){
   if(!r||r.w<5||r.h<5)return;
@@ -518,10 +513,15 @@ $("resetBrightness").onclick=()=>{
   brightness[side]=0;
   contrast[side]=0;
   personContrast[side]=0;
+  personRect[side]=null; selectingPerson=false; $("personBox").style.display="none"; $("cropBox").style.pointerEvents="auto";
   updateBrightnessUI();
   const r=currentRect(); if(r)drawPreview(side,r);
 };
 updateBrightnessUI();
+
+$("contrast").oninput=e=>{ contrast[side]=+e.target.value; $("contrastValue").textContent=(contrast[side]>0?"+":"")+contrast[side]; const r=currentRect(); if(r)drawPreview(side,r); };
+$("personContrast").oninput=e=>{ personContrast[side]=+e.target.value; $("personContrastValue").textContent=(personContrast[side]>0?"+":"")+personContrast[side]; const r=currentRect(); if(r)drawPreview(side,r); };
+$("selectPersonBtn").onclick=()=>{ selectingPerson=!selectingPerson; $("cropBox").style.pointerEvents=selectingPerson?"none":"auto"; $("status").textContent=selectingPerson?"Aadhaar मधील व्यक्तीच्या photo भोवती drag करा.":"Person Photo selection बंद."; updateBrightnessUI(); };
 
 $("saveBtn").onclick=()=>{
   if(!window.frontRect||!window.backRect){
