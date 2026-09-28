@@ -126,7 +126,7 @@ function syncSourceWrap(){
   }
 }
 let boxMode=null,boxStart=null,boxRectScreen=null;
-let brightness={front:0,back:0}, brightnessMode="full";
+let brightness={front:0,back:0}, contrast={front:0,back:0}, personContrast={front:0,back:0}, brightnessMode="full";
 
 $("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
 $("newBtn").onclick=()=>location.reload();
@@ -427,7 +427,7 @@ function drawPreview(which,r){
   oc.imageSmoothingEnabled=true;
   oc.imageSmoothingQuality="high";
   const full=true;
-  if(full) oc.filter=`brightness(${100+(brightness[which]||0)}%)`;
+  if(full) oc.filter=`brightness(${100+(brightness[which]||0)}%) contrast(${100+(contrast[which]||0)}%)`;
   oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height);
   oc.restore();
 
@@ -516,6 +516,8 @@ $("brightness").oninput=e=>{
 };
 $("resetBrightness").onclick=()=>{
   brightness[side]=0;
+  contrast[side]=0;
+  personContrast[side]=0;
   updateBrightnessUI();
   const r=currentRect(); if(r)drawPreview(side,r);
 };
