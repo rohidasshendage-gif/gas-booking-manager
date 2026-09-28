@@ -17,7 +17,7 @@ h2{font-size:17px;margin:0 0 12px}.fileBtn,button{border:0;border-radius:12px;pa
 input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px solid var(--line);border-radius:11px;padding:12px;font-size:15px;margin:8px 0}
 .row{display:flex;gap:9px}.row>*{flex:1}.status{padding:10px;border-radius:10px;background:#081423;border:1px solid var(--line);font-size:13px;margin-top:10px}
 .hint,.note{font-size:12px;color:var(--muted);line-height:1.5}.tabs{display:flex;gap:8px}.tabs>*{flex:1}
-.workspace{min-height:430px;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
+.workspace{width:100%;max-width:520px;aspect-ratio:3/4;min-height:0;margin:0 auto;background:#050b13;border:1px dashed #385473;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
 #sourceWrap{position:relative;display:block;width:max-content;max-width:100%;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
 #sourceCanvas{width:auto;max-width:100%;max-height:68vh;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 #cropBox{position:absolute;display:none;border:3px solid #168cff;background:rgba(22,140,255,.10);box-sizing:border-box;touch-action:none;z-index:50;pointer-events:auto}
@@ -29,7 +29,7 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
 .crops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.cropCard{background:#081423;border:1px solid var(--line);border-radius:13px;padding:10px}.cropCard canvas{width:100%;background:#fff;display:block;aspect-ratio:85.6/53.98}
 .badge{display:inline-block;padding:5px 8px;border-radius:8px;background:#123d79;color:#bcd8ff;font-size:11px;margin-top:7px}
 #printSheet{display:none}
-@media(max-width:800px){.grid{grid-template-columns:1fr}.crops{grid-template-columns:1fr}.workspace{min-height:330px}}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.crops{grid-template-columns:1fr}.workspace{width:100%;max-width:420px;aspect-ratio:3/4;min-height:0}}
 @media print{
  body{background:#fff!important;color:#000}.noPrint{display:none!important}
  #printSheet{display:block!important;width:6in;height:4in;background:#fff;position:relative}
@@ -64,7 +64,6 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
   <div style="font-weight:800;font-size:14px">☀️ Photo Brightness</div>
   <div class="row" style="margin-top:8px">
     <button id="fullBrightBtn" class="ghost">पूर्ण Photo</button>
-    <button id="personBrightBtn" class="ghost">👤 Person Photo</button>
   </div>
   <div class="hint" style="margin-top:7px" id="brightModeText">पूर्ण Photo निवडले आहे.</div>
   <input id="brightness" type="range" min="-60" max="60" value="0" step="1" style="width:100%;margin:10px 0 5px;accent-color:#287cff">
@@ -73,7 +72,6 @@ input[type=password],select{width:100%;background:#07111f;color:#fff;border:1px 
     <span id="brightnessValue" class="badge" style="margin-top:0">0</span>
   </div>
   <button id="resetBrightness" class="ghost" style="width:100%;margin-top:8px;padding:9px">↺ Reset Brightness</button>
-  <div class="hint" style="margin-top:7px">Person Photo निवडल्यानंतर Aadhaar/card मधील फक्त व्यक्तीचा photo area image वर drag करून निवडा.</div>
 </div>
 <hr style="border-color:#1d2b40;margin:16px 0">
 <h2>3. Print</h2>
@@ -129,7 +127,6 @@ function syncSourceWrap(){
 }
 let boxMode=null,boxStart=null,boxRectScreen=null;
 let brightness={front:0,back:0}, brightnessMode="full";
-let personRect=null, drawingPerson=null;
 
 $("file").onchange=e=>{file=e.target.files[0];$("status").textContent=file?file.name:"PDF / Image निवडा."};
 $("newBtn").onclick=()=>location.reload();
@@ -348,45 +345,8 @@ cropBox.addEventListener("pointercancel",()=>{
   movingCrop=null;
 });
 
-/* Select the person's photo area for brightness-only editing. */
-src.addEventListener("pointerdown",e=>{
-  if(brightnessMode!=="person" || !src.width || !src.height)return;
-  e.preventDefault(); e.stopPropagation();
-  const p=pointerOnCanvas(e);
-  drawingPerson={start:p,latest:{x:p.x,y:p.y,w:1,h:1}};
-  showPersonBox(drawingPerson.latest);
-});
-src.addEventListener("pointermove",e=>{
-  if(!drawingPerson)return;
-  e.preventDefault(); e.stopPropagation();
-  const p=pointerOnCanvas(e), s=drawingPerson.start;
-  drawingPerson.latest=clampRect({
-    x:Math.min(s.x,p.x), y:Math.min(s.y,p.y),
-    w:Math.abs(p.x-s.x), h:Math.abs(p.y-s.y)
-  });
-  showPersonBox(drawingPerson.latest);
-  const r=currentRect();
-  if(r) drawPreview(side,r);
-});
-src.addEventListener("pointerup",e=>{
-  if(!drawingPerson)return;
-  e.preventDefault(); e.stopPropagation();
-  const r=drawingPerson.latest;
-  drawingPerson=null;
-  if(r && r.w>=10 && r.h>=10){
-    personRect=r;
-    showPersonBox(r);
-    const cr=currentRect(); if(cr) drawPreview(side,cr);
-    $("status").textContent="Person Photo area set — आता brightness बदलू शकता.";
-  }
-});
-src.addEventListener("pointercancel",()=>{
-  if(drawingPerson){drawingPerson=null;showPersonBox(personRect);}
-});
-
 /* Draw a NEW crop directly on the image. */
 src.addEventListener("pointerdown",e=>{
-  if(brightnessMode==="person")return;
   if(!src.width || !src.height)return;
   e.preventDefault();
   const p=pointerOnCanvas(e);
@@ -466,7 +426,7 @@ function drawPreview(which,r){
   oc.save();
   oc.imageSmoothingEnabled=true;
   oc.imageSmoothingQuality="high";
-  const full=brightnessMode==="full";
+  const full=true;
   if(full) oc.filter=`brightness(${100+(brightness[which]||0)}%)`;
   oc.drawImage(src,r.x,r.y,r.w,r.h,0,0,out.width,out.height);
   oc.restore();
@@ -505,8 +465,6 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
   side=b.dataset.side;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
-  personRect=null;
-  showPersonBox(null);
   updateBrightnessUI();
   if(currentRect()){ showCropBox(currentRect()); drawPreview(side,currentRect()); }
   else initDefaultCrop();
@@ -551,12 +509,6 @@ $("fullBrightBtn").onclick=()=>{
   updateBrightnessUI();
   const r=currentRect(); if(r)drawPreview(side,r);
 };
-$("personBrightBtn").onclick=()=>{
-  brightnessMode="person";
-  updateBrightnessUI();
-  $("status").textContent="Image वर व्यक्तीचा photo area drag करा.";
-  const r=currentRect(); if(r)drawPreview(side,r);
-};
 $("brightness").oninput=e=>{
   brightness[side]=+e.target.value;
   $("brightnessValue").textContent=(brightness[side]>0?"+":"")+brightness[side];
@@ -564,8 +516,6 @@ $("brightness").oninput=e=>{
 };
 $("resetBrightness").onclick=()=>{
   brightness[side]=0;
-  personRect=null;
-  showPersonBox(null);
   updateBrightnessUI();
   const r=currentRect(); if(r)drawPreview(side,r);
 };
@@ -609,7 +559,6 @@ $("saveBtn").onclick=()=>{
 window.addEventListener("resize",()=>{
   if(typeof syncSourceWrap==="function")syncSourceWrap();
   if(typeof currentRect==="function" && currentRect())showCropBox(currentRect());
-  if(typeof personRect!=="undefined" && personRect && typeof showPersonBox==="function")showPersonBox(personRect);
 });
 </script>
 </body></html>
