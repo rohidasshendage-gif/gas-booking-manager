@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GAS BOOKING MANAGER</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6fa;color:#17202a;font-family:Arial,sans-serif;text-transform:uppercase}
+header{background:#d71920;color:#fff;padding:18px;text-align:center;font-size:22px;font-weight:800}
+.wrap{max-width:950px;margin:auto;padding:14px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
+.tabs button{flex:1;min-width:115px;border:0;border-radius:9px;padding:12px 8px;background:#dfe5eb;font-weight:800}
+.tabs button.active{background:#d71920;color:#fff}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001}
+label{display:block;font-weight:800;margin:10px 0 5px}
+input,select{width:100%;padding:12px;border:1px solid #cbd3dc;border-radius:8px;font-size:16px;text-transform:uppercase}
+input::placeholder{text-transform:uppercase}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:8px;padding:11px 14px;font-weight:800}
+.primary{width:100%;margin-top:15px;background:#16843b;color:#fff;font-size:16px}
+.green{background:#dff3e5;color:#08752e}
+.red{background:#ffe0e0;color:#a40000}
+.blue{background:#e2ecff;color:#174ea6}
+.item{border:1px solid #e0e5ea;border-radius:11px;padding:13px;margin:10px 0;background:#fafbfd}
+.item b{font-size:18px}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;background:#ffe0e0;color:#a40000;font-weight:800;font-size:12px}
+.badge.ok{background:#dff3e5;color:#08752e}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.small{color:#666;font-size:12px}
+.empty{text-align:center;color:#777;padding:25px}
+.hidden{display:none!important}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.stat{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px #0001}
+.stat strong{display:block;font-size:23px;color:#d71920}
+.modal{position:fixed;inset:0;background:#0008;z-index:20;padding:18px;overflow:auto}
+.modalbox{max-width:600px;margin:25px auto;background:#fff;border-radius:14px;padding:16px}
+@media(max-width:600px){.row,.summary{grid-template-columns:1fr}}
+
+.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.compact-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+.compact-table th,.compact-table td{border-bottom:1px solid #e4e8ec;padding:7px 5px;text-align:left;white-space:nowrap}
+.compact-table th{background:#f1f4f7;font-size:12px}
+.compact-actions{display:flex;gap:4px;align-items:center}
+.compact-actions .btn{padding:6px 7px;font-size:11px;white-space:nowrap}
+.otp-input{width:95px!important;padding:7px!important;font-size:13px!important}
+.customer-grid{display:grid;grid-template-columns:1fr;gap:7px}
+@media(max-width:600px){
+ .table-wrap{margin:0 -4px;width:calc(100% + 8px)}
+ .compact-table{font-size:10px;min-width:500px}
+ .compact-table th,.compact-table td{padding:5px 3px}
+ .compact-actions .btn{padding:5px 4px;font-size:10px}
+ .otp-input{width:75px!important}
+}
+</style>
+</head>
+<body>
+<header>🔥 GAS BOOKING MANAGER</header>
+<div class="wrap">
+
+<div class="tabs">
+<button class="active" onclick="showTab('addCustomer',this)">CUSTOMER ADD</button>
+<button onclick="showTab('bookingTab',this)">BOOKING</button>
+<button onclick="showTab('customers',this)">CUSTOMER</button>
+<button onclick="showTab('bookingNowTab',this)">BOOKING NOW</button>
+</div>
+
+
+<section id="addCustomer">
+<div class="card">
+<h2>👤 CUSTOMER ADD</h2>
+<label>CUSTOMER NUMBER</label><input id="customerNo" inputmode="numeric" placeholder="CUSTOMER NUMBER">
+<label>CUSTOMER NAME</label><input id="name" placeholder="CUSTOMER NAME">
+<label>MOBILE NUMBER</label><input id="mobile" maxlength="10" inputmode="numeric" placeholder="MOBILE NUMBER">
+<div class="row">
+<div><label>GAS COMPANY</label><select id="company"><option>INDANE</option><option>HP GAS</option><option>BHARATGAS</option><option>OTHER</option></select></div>
+<div><label>DELIVERY DATE</label><input id="deliveryDate" type="date"></div>
+</div>
+<button class="btn primary" onclick="addCustomer()">✓ SAVE CUSTOMER</button>
+</div>
+</section>
+
+<section id="bookingTab" class="hidden">
+<div class="card">
+<h2>📅 BOOKING</h2>
+<p class="small">26 दिवस पूर्ण झालेले ग्राहक.</p>
+<div id="bookingDueList"></div>
+</div>
+</section>
+
+<section id="customers" class="hidden">
+<div class="card">
+<h2>👥 ALL CUSTOMERS</h2>
+<input id="customerSearch" placeholder="SEARCH CUSTOMER NAME / NUMBER / MOBILE" oninput="renderCustomers()">
+<div id="customerList"></div>
+</div>
+</section>
+
+<section id="bookingNowTab" class="hidden">
+<div class="card">
+<h2>🔥 BOOKING NOW CUSTOMERS</h2>
+<p class="small">BOOKING NOW केलेले ग्राहक.</p>
+<div id="bookingNowList"></div>
+</div>
+</section>
+<div id="editModal" class="modal hidden">
+<div class="modalbox">
+<h2>EDIT CUSTOMER</h2>
+<input id="editId" type="hidden">
+<label>CUSTOMER NUMBER</label><input id="editNo" inputmode="numeric">
+<label>CUSTOMER NAME</label><input id="editName">
+<label>MOBILE NUMBER</label><input id="editMobile" maxlength="10" inputmode="numeric">
+<label>CUSTOMER OTP</label><input id="editOtp" maxlength="6" inputmode="numeric"><label>GAS COMPANY</label><select id="editCompany"><option>INDANE</option><option>HP GAS</option><option>BHARATGAS</option><option>OTHER</option></select>
+<label>DELIVERY DATE</label><input id="editDate" type="date">
+<div class="actions">
+<button class="btn green" onclick="saveEdit()">SAVE CHANGES</button>
+<button class="btn red" onclick="closeEdit()">CANCEL</button>
+</div>
+</div>
+</div>
+
+<script>
+
+const DATA_KEY="GAS_CUSTOMERS_V3";
+const HIST_KEY="GAS_HISTORY_V3";
+let data=JSON.parse(localStorage.getItem(DATA_KEY)||"[]");
+let history=JSON.parse(localStorage.getItem(HIST_KEY)||"[]");
+
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function addDays(s,n){const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function fmt(s){if(!s)return "-";const a=s.split("-");return a[2]+"/"+a[1]+"/"+a[0]}
+function norm(s){return String(s||"").trim().toUpperCase().replace(/\s+/g," ")}
+function esc(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function save(){localStorage.setItem(DATA_KEY,JSON.stringify(data));localStorage.setItem(HIST_KEY,JSON.stringify(history));renderAll()}
+function showTab(id,btn){document.querySelectorAll("section").forEach(x=>x.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");renderAll()}
+function duplicate(no,name,mobile,ignoreId=null){return data.find(x=>x.id!==ignoreId&&((no&&norm(x.customerNo)===norm(no))||(name&&norm(x.name)===norm(name))||(mobile&&norm(x.mobile)===norm(mobile))))}
+
+function addCustomer(){
+ const no=document.getElementById("customerNo").value.trim(), name=norm(document.getElementById("name").value),
+ mobile=document.getElementById("mobile").value.trim(),
+ company=document.getElementById("company").value, date=document.getElementById("deliveryDate").value;
+ if(!no||!name||!date){alert("CUSTOMER NUMBER, CUSTOMER NAME AND DELIVERY DATE REQUIRED.");return}
+ if(mobile&&!/^\d{10}$/.test(mobile)){alert("MOBILE NUMBER MUST BE 10 DIGITS.");return}
+ const d=duplicate(no,name,mobile);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!\nCUSTOMER NUMBER / NAME / MOBILE NUMBER PAiKI EK SAME AHE.");return}
+ data.unshift({id:Date.now(),customerNo:no,name,mobile,otp:"",company,deliveryDate:date,nextDate:addDays(date,26),status:"CUSTOMER"});
+ history.unshift({id:Date.now()+1,type:"CUSTOMER ADD",date:today(),customerNo:no,name,mobile});
+ save();clearAdd();alert("CUSTOMER SAVED ✅");showTab("customers",document.querySelectorAll(".tabs button")[2]);
+}
+function clearAdd(){customerNo.value="";name.value="";mobile.value="";deliveryDate.value=today()}
+
+function bookingNow(id){
+ const x=data.find(a=>a.id===id);if(!x)return;
+ let otp=prompt("CUSTOMER OTP ENTER करा");
+ if(otp===null)return;
+ otp=String(otp).trim();
+ if(!/^\d{4,6}$/.test(otp)){
+   alert("❌ OTP ENTER KARA. OTP 4 TO 6 DIGITS ASAVA.");
+   return;
+ }
+ x.otp=otp;
+ x.status="BOOKING NOW";
+ x.bookingDate=today();
+ history.unshift({id:Date.now(),type:"BOOKING NOW",date:today(),customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
+ save();alert("BOOKING NOW SAVED ✅");showTab("bookingNowTab",document.querySelectorAll(".tabs button")[3]);
+}
+function deliveryNow(id){
+ const x=data.find(a=>a.id===id);if(!x)return;
+ const otp=prompt("CUSTOMER OTP ENTER करा");
+ if(otp===null)return;
+ if(String(otp).trim()!==String(x.otp||"").trim()){alert("❌ OTP NOT MATCHED.");return}
+ const d=today();
+ x.deliveryDate=d;
+ x.nextDate=addDays(d,26);
+ x.status="CUSTOMER";
+ x.bookingDate="";
+ history.unshift({id:Date.now(),type:"DELIVERY DONE",date:d,customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
+ save();
+ alert("DELIVERY DONE ✅\nNEXT BOOKING: "+fmt(x.nextDate));
+ showTab("bookingTab",document.querySelectorAll(".tabs button")[1]);
+}
+function editCustomer(id){
+ const x=data.find(a=>a.id===id);if(!x)return;
+ editId.value=x.id;editNo.value=x.customerNo;editName.value=x.name;editMobile.value=x.mobile||"";editCompany.value=x.company;editDate.value=x.deliveryDate||"";editOtp.value=x.otp||"";
+ editModal.classList.remove("hidden");
+}
+function closeEdit(){editModal.classList.add("hidden")}
+function saveEdit(){
+ const id=Number(editId.value),no=editNo.value.trim(),name=norm(editName.value),mobile=editMobile.value.trim(),otp=editOtp.value.trim(),company=editCompany.value,date=editDate.value;
+ if(!no||!name||!date){alert("REQUIRED DETAILS MISSING.");return}
+ const d=duplicate(no,name,mobile,id);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!");return}
+ const x=data.find(a=>a.id===id);if(!x)return;
+ x.customerNo=no;x.name=name;x.mobile=mobile;x.otp=otp;x.company=company;x.deliveryDate=date;x.nextDate=addDays(date,26);save();closeEdit();alert("CUSTOMER UPDATED ✅");
+}
+function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!==id);save()}}
+
+function deleteBookingNow(id){
+ const x=data.find(a=>a.id===id);if(!x)return;
+ if(!confirm("DELETE THIS BOOKING NOW ENTRY?"))return;
+ x.status="CUSTOMER";
+ x.bookingDate="";
+ x.otp="";
+ save();
+ alert("BOOKING NOW ENTRY DELETED ✅");
+}
+
+function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
+function renderBooking(){
+ const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
+ const box=document.getElementById("bookingDueList");
+ box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+}
+function renderCustomers(){
+ const q=norm(document.getElementById("customerSearch")?.value||"");
+ const list=data.filter(x=>!q||norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q));
+ document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
+}
+function renderBookingNow(){
+ const list=data.filter(x=>x.status==="BOOKING NOW").slice(0,15);
+ document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+}
+
+document.addEventListener("input",e=>{if(e.target.matches("input[type=text],input:not([type]),input[type=tel]"))e.target.value=e.target.value.toUpperCase()});
+document.getElementById("deliveryDate").value=today();
+renderAll();
+</script>
+</body>
+</html>
