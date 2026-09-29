@@ -9,8 +9,10 @@
 body{margin:0;background:#f3f6fa;color:#17202a;font-family:Arial,sans-serif;text-transform:uppercase}
 header{background:#d71920;color:#fff;padding:18px;text-align:center;font-size:22px;font-weight:800}
 .wrap{max-width:950px;margin:auto;padding:14px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
-.tabs button{flex:1;min-width:115px;border:0;border-radius:9px;padding:12px 8px;background:#dfe5eb;font-weight:800}
+.tabs{display:block;margin-bottom:14px}
+.tab-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:7px}
+.tabs button{width:100%;min-width:0;border:0;border-radius:10px;padding:14px 5px;background:#dfe5eb;font-weight:800;font-size:14px;white-space:nowrap}
+@media(max-width:420px){.tabs button{font-size:13px;padding:13px 3px}}
 .tabs button.active{background:#d71920;color:#fff}
 .card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001;overflow:hidden}
 label{display:block;font-weight:800;margin:10px 0 5px}
@@ -67,22 +69,50 @@ input::placeholder{text-transform:uppercase}
 .stock-grid input{padding:9px}
 </style>
 
+
+<style>
+.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:12px 0 16px}
+.dash-card{background:#f5f7fa;border-radius:12px;padding:14px;text-align:center;border:1px solid #e1e5ea}
+.dash-card .d-label{font-size:11px;font-weight:800;color:#59636e;margin-bottom:6px}
+.dash-card .d-value{font-size:22px;font-weight:900;color:#151b23}
+.profit-box{background:#f5f7fa;border-radius:14px;padding:16px;text-align:center;border:2px solid #e1e5ea;margin:12px 0}
+.profit-box .d-label{font-size:12px;font-weight:900}
+.profit-box .d-value{font-size:28px;font-weight:900;margin-top:5px}
+.stock-warning{display:none;margin:8px 0;padding:9px;border-radius:9px;background:#fff3cd;color:#7a5a00;font-weight:800;font-size:12px}
+@media(max-width:420px){.dashboard-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
 <header>🔥 GAS BOOKING MANAGER</header><div id="firebaseStatus" style="text-align:center;padding:7px;font-size:12px;font-weight:800;background:#fff3cd;color:#7a5a00">☁️ FIREBASE CONNECTING...</div>
 <div class="wrap">
-
 <div class="tabs">
-
-<button onclick="showTab('stock',this)">STOCK</button>
-<button class="active" onclick="showTab('addCustomer',this)">CUSTOMER ADD</button>
-<button onclick="showTab('bookingTab',this)">BOOKING</button>
-<button onclick="showTab('customers',this)">CUSTOMER</button>
-<button onclick="showTab('bookingNowTab',this)">BOOKING NOW</button>
+<div class="tab-row">
+<button class="active" onclick="showTab('dashboardCard',this)">📊 DASHBOARD</button>
+<button onclick="showTab('stock',this)">📦 STOCK</button>
+<button onclick="showTab('addCustomer',this)">👤 CUSTOMER ADD</button>
+</div>
+<div class="tab-row">
+<button onclick="showTab('bookingTab',this)">📅 BOOKING</button>
+<button onclick="showTab('customers',this)">👥 CUSTOMER</button>
+<button onclick="showTab('bookingNowTab',this)">🔥 BOOKING NOW</button>
+</div>
 </div>
 
+<section class="card" id="dashboardCard">
+<h2>📊 DASHBOARD</h2>
+<div class="dashboard-grid">
+<div class="dash-card"><div class="d-label">TOTAL CUSTOMERS</div><div class="d-value" id="dashCustomers">0</div></div>
+<div class="dash-card"><div class="d-label">FULL STOCK</div><div class="d-value" id="dashFull">0</div></div>
+<div class="dash-card"><div class="d-label">EMPTY STOCK</div><div class="d-value" id="dashEmpty">0</div></div>
+<div class="dash-card"><div class="d-label">TODAY BOOKING</div><div class="d-value" id="dashBooking">0</div></div>
+<div class="dash-card"><div class="d-label">TODAY DELIVERY</div><div class="d-value" id="dashDelivery">0</div></div>
+<div class="dash-card"><div class="d-label">CURRENT MONTH PROFIT</div><div class="d-value" id="dashProfit">₹0</div></div>
+</div></section>
 
-<section id="addCustomer">
+
+
+
+<section id="addCustomer" class="hidden">
 <div class="card">
 <h2>👤 CUSTOMER ADD</h2>
 <label>CUSTOMER NUMBER</label><input id="customerNo" inputmode="numeric" placeholder="CUSTOMER NUMBER">
@@ -254,7 +284,7 @@ function addCustomer(){
  const d=duplicate(no,name,mobile);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!\nCUSTOMER NUMBER / NAME / MOBILE NUMBER PAiKI EK SAME AHE.");return}
  data.unshift({id:Date.now(),customerNo:no,name,mobile,otp:"",company,deliveryDate:date,nextDate:addDays(date,26),status:"CUSTOMER"});
  history.unshift({id:Date.now()+1,type:"CUSTOMER ADD",date:today(),customerNo:no,name,mobile});
- save();clearAdd();alert("CUSTOMER SAVED ✅");showTab("customers",document.querySelectorAll(".tabs button")[2]);
+ save();clearAdd();alert("CUSTOMER SAVED ✅");showTab("customers",document.querySelectorAll(".tabs button")[4]);
 }
 function clearAdd(){customerNo.value="";name.value="";mobile.value="";deliveryDate.value=today()}
 
@@ -277,7 +307,7 @@ async function bookingNow(id){
  x.bookingDate=today();
  history.unshift({id:Date.now(),type:"BOOKING NOW",date:today(),customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
  save();alert("BOOKING NOW SAVED ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSALE: ₹"+stockResult.sell+"\nPURCHASE: ₹"+stockResult.purchase+"\nPROFIT/LOSS: ₹"+stockResult.saleProfit);
- showTab("bookingNowTab",document.querySelectorAll(".tabs button")[4]);
+ showTab("bookingNowTab",document.querySelectorAll(".tabs button")[5]);
 }
 async function deliveryNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
@@ -297,7 +327,7 @@ async function deliveryNow(id){
  history.unshift({id:Date.now(),type:"DELIVERY DONE",date:d,customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
  save();
  alert("DELIVERY DONE ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSTOCK ADDED: ₹"+stockResult.purchase);
- showTab("bookingTab",document.querySelectorAll(".tabs button")[2]);
+ showTab("bookingTab",document.querySelectorAll(".tabs button")[3]);
 }
 function editCustomer(id){
  const x=data.find(a=>a.id===id);if(!x)return;
@@ -329,7 +359,7 @@ function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
- box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+ box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
@@ -345,6 +375,7 @@ document.addEventListener("input",e=>{if(e.target.matches("input[type=text],inpu
 document.getElementById("deliveryDate").value=today();
 renderAll();
 loadFromFirebase();
+setTimeout(updateDashboard,500);
 </script>
 
 <section id="stock" class="hidden">
@@ -354,123 +385,205 @@ loadFromFirebase();
       <label>Total Gas Tank
         <input id="stockTotal" type="number" min="0" value="0">
       </label>
-      <label>Full
+      <label>Stock Value
+        <input id="stockValue" type="number" step="0.01" value="0" readonly>
+      </label>
+      <label>Full Gas Tank
         <input id="stockFull" type="number" min="0" value="0">
       </label>
-      <label>Empty
-        <input id="stockEmpty" type="number" min="0" value="0">
-      </label>
-      <label>Purchase Price
-        <input id="purchasePrice" type="number" min="0" step="0.01" value="0">
+      <label>Full Stock Value
+        <input id="fullStockValue" type="number" step="0.01" value="0" readonly>
       </label>
       <label>Sell Price
         <input id="sellPrice" type="number" min="0" step="0.01" value="0">
       </label>
+      <label>Purchase Price
+        <input id="purchasePrice" type="number" min="0" step="0.01" value="0">
+      </label>
+      <label>Empty
+        <input id="stockEmpty" type="number" min="0" value="0">
+      </label>
       <label>Total Profit / Loss
         <input id="totalProfit" type="number" step="0.01" value="0" readonly>
       </label>
-      <label>Current Full Stock Value
-        <input id="currentStockValue" type="number" step="0.01" value="0" readonly>
-      </label>
     </div>
+    <div id="stockWarning" class="stock-warning"></div>
+    <div class="profit-box"><div class="d-label">CURRENT MONTH PROFIT / LOSS</div><div class="d-value" id="profitHighlight">₹0</div></div>
     <button type="button" id="saveStock">SAVE STOCK</button>
+  </div>
+
+  <div class="card" style="margin-top:15px;">
+    <h2>MONTHLY PROFIT / LOSS HISTORY</h2>
+    <div id="monthlyProfitHistory" class="table-wrap"></div>
   </div>
 </section>
 
-
 <script>
 (function(){
-  const ids = ["stockTotal","stockFull","stockEmpty","purchasePrice","sellPrice","totalProfit","currentStockValue"];
+  const ids = ["stockTotal","stockValue","stockFull","fullStockValue","stockEmpty","purchasePrice","sellPrice","totalProfit"];
+  const monthKey = () => {
+    const d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+  };
+  const monthName = key => {
+    const [y,m] = String(key).split("-");
+    const names=["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+    return names[(Number(m)||1)-1]+" "+y;
+  };
+
+  function calcValues(d){
+    const total=Number(d.stockTotal||0), full=Number(d.stockFull||0), purchase=Number(d.purchasePrice||0);
+    return {stockValue:total*purchase, fullStockValue:full*purchase};
+  }
+
+  function renderHistory(history){
+    const box=document.getElementById("monthlyProfitHistory");
+    const entries=Object.entries(history||{}).sort((a,b)=>b[0].localeCompare(a[0]));
+    const lifetime=entries.reduce((sum,[,v])=>sum+Number(v||0),0);
+    box.innerHTML=`<div class="profit-box"><div class="d-label">LIFETIME TOTAL PROFIT / LOSS</div><div class="d-value">₹${lifetime.toFixed(2)}</div></div>` + (entries.length ? `<table class="compact-table"><thead><tr><th>MONTH</th><th>PROFIT / LOSS</th><th>ACTION</th></tr></thead><tbody>${entries.map(([k,v])=>`<tr><td>${monthName(k)}</td><td>₹${Number(v||0).toFixed(2)}</td><td><button type="button" class="btn red" onclick="deleteMonthlyProfit('${k}')">DELETE</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">NO MONTHLY PROFIT / LOSS HISTORY.</div>');
+  }
+
+  window.deleteMonthlyProfit = async function(key){
+    if(!confirm("DELETE THIS MONTH PROFIT / LOSS HISTORY?")) return;
+    try{
+      const ref=db.collection("stock").doc("STOCK_DATA");
+      const snap=await ref.get();
+      const d=snap.exists?(snap.data()||{}):{};
+      const monthly={...(d.monthlyProfitHistory||{})};
+      delete monthly[key];
+      const current=monthKey();
+      await ref.set({monthlyProfitHistory:monthly,totalProfit:Number(monthly[current]||0)},{merge:true});
+      document.getElementById("totalProfit").value=Number(monthly[current]||0);
+      renderHistory(monthly);
+      alert("Monthly history deleted successfully");
+    }catch(e){
+      console.error("Monthly history delete error:",e);
+      alert("Delete failed");
+    }
+  };
 
   async function loadStock(){
     try{
-      const snap = await db.collection("stock").doc("STOCK_DATA").get();
-      if(snap.exists){
-        const d=snap.data()||{};
-        ids.forEach(id=>{
-          if(d[id] !== undefined && document.getElementById(id))
-            document.getElementById(id).value=d[id];
-        });
-      }
-    }catch(e){ console.error("Stock load error:",e); }
+      const snap=await db.collection("stock").doc("STOCK_DATA").get();
+      const d=snap.exists?(snap.data()||{}):{};
+      const history=d.monthlyProfitHistory||{};
+      const current=monthKey();
+      const currentProfit=Number(history[current]||0);
+      const vals=calcValues(d);
+      const values={
+        stockTotal:Number(d.stockTotal||0),
+        stockValue:vals.stockValue,
+        stockFull:Number(d.stockFull||0),
+        fullStockValue:vals.fullStockValue,
+        stockEmpty:Number(d.stockEmpty||0),
+        purchasePrice:Number(d.purchasePrice||0),
+        sellPrice:Number(d.sellPrice||0),
+        totalProfit:currentProfit
+      };
+      ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=values[id];});
+      renderHistory(history);
+      updateDashboard();
+      updateProfitHighlight(currentProfit);
+    }catch(e){console.error("Stock load error:",e);}
   }
 
-  async function moveStock(fullDelta, emptyDelta, mode){
-    const ref = db.collection("stock").doc("STOCK_DATA");
-    let result = null;
+  async function moveStock(fullDelta,emptyDelta,mode){
+    const ref=db.collection("stock").doc("STOCK_DATA");
+    let result=null;
     await db.runTransaction(async tx=>{
-      const snap = await tx.get(ref);
-      const d = snap.exists ? (snap.data() || {}) : {};
-      const full = Number(d.stockFull || 0);
-      const empty = Number(d.stockEmpty || 0);
-      const purchase = Number(d.purchasePrice || 0);
-      const sell = Number(d.sellPrice || 0);
-      const profit = Number(d.totalProfit || 0);
-      const newFull = full + fullDelta;
-      const newEmpty = empty + emptyDelta;
+      const snap=await tx.get(ref);
+      const d=snap.exists?(snap.data()||{}):{};
+      const full=Number(d.stockFull||0), empty=Number(d.stockEmpty||0);
+      const total=Number(d.stockTotal||0), purchase=Number(d.purchasePrice||0), sell=Number(d.sellPrice||0);
+      const newFull=full+fullDelta, newEmpty=empty+emptyDelta;
+      if(newFull+newEmpty!==total){result={ok:false,message:"❌ STOCK DATA MISMATCH. Total = Full + Empty असावे."};return;}
+      if(newFull<0){result={ok:false,message:"❌ FULL STOCK उपलब्ध नाही."};return;}
+      if(newEmpty<0){result={ok:false,message:"❌ EMPTY STOCK उपलब्ध नाही."};return;}
 
-      if(newFull < 0){
-        result = {ok:false, message:"❌ FULL STOCK उपलब्ध नाही."};
-        return;
-      }
-      if(newEmpty < 0){
-        result = {ok:false, message:"❌ EMPTY STOCK उपलब्ध नाही."};
-        return;
-      }
-
-      // BOOKING NOW = one full cylinder is sold.
-      // Delivery NOW = returned empty is converted back to full stock.
-      const saleProfit = mode === "BOOKING" ? (sell - purchase) : 0;
-      const newProfit = profit + saleProfit;
-      const newStockValue = newFull * purchase;
+      const current=monthKey();
+      const monthly={...(d.monthlyProfitHistory||{})};
+      const saleProfit=mode==="BOOKING" ? (sell-purchase) : 0;
+      monthly[current]=Number(monthly[current]||0)+saleProfit;
+      const vals=calcValues({stockTotal:total,stockFull:newFull,purchasePrice:purchase});
 
       tx.set(ref,{
-        stockFull:newFull,
-        stockEmpty:newEmpty,
-        stockTotal:Number(d.stockTotal || 0),
-        purchasePrice:purchase,
-        sellPrice:sell,
-        totalProfit:newProfit,
-        currentStockValue:newStockValue
+        stockTotal:total,stockFull:newFull,stockEmpty:newEmpty,
+        purchasePrice:purchase,sellPrice:sell,
+        stockValue:vals.stockValue,fullStockValue:vals.fullStockValue,
+        totalProfit:monthly[current],monthlyProfitHistory:monthly
       },{merge:true});
-      result = {ok:true, full:newFull, empty:newEmpty, profit:newProfit,
-        saleProfit:saleProfit, stockValue:newStockValue, purchase:purchase, sell:sell};
+      result={ok:true,full:newFull,empty:newEmpty,profit:monthly[current],saleProfit,stockValue:vals.stockValue,fullStockValue:vals.fullStockValue,purchase,sell,history:monthly};
     });
-
-    if(!result || !result.ok) return result || {ok:false,message:"Stock update failed"};
-
-    const fullEl=document.getElementById("stockFull");
-    const emptyEl=document.getElementById("stockEmpty");
-    const profitEl=document.getElementById("totalProfit");
-    const valueEl=document.getElementById("currentStockValue");
-    if(fullEl) fullEl.value=result.full;
-    if(emptyEl) emptyEl.value=result.empty;
-    if(profitEl) profitEl.value=result.profit;
-    if(valueEl) valueEl.value=result.stockValue;
+    if(!result||!result.ok)return result||{ok:false,message:"Stock update failed"};
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
+    set("stockValue",result.stockValue);set("stockFull",result.full);set("fullStockValue",result.fullStockValue);set("stockEmpty",result.empty);set("totalProfit",result.profit);
+    renderHistory(result.history);
+    updateDashboard();
+    updateProfitHighlight(result.profit);
     return result;
   }
 
-  window.moveGasStock = moveStock;
+  window.moveGasStock=moveStock;
 
-  async function saveStock(){
-    const data={};
-    ids.forEach(id=>{
-      const el=document.getElementById(id);
-      data[id]=el ? Number(el.value||0) : 0;
-    });
-    try{
-      await db.collection("stock").doc("STOCK_DATA").set(data,{merge:true});
-      alert("Stock saved successfully");
-    }catch(e){
-      console.error("Stock save error:",e);
-      alert("Stock save failed");
-    }
+  function updateProfitHighlight(v){
+    const n=Number(v||0);
+    const el=document.getElementById("profitHighlight");
+    if(el)el.textContent=(n<0?"LOSS ₹":"PROFIT ₹")+Math.abs(n).toFixed(2);
+    const dash=document.getElementById("dashProfit");
+    if(dash)dash.textContent=(n<0?"LOSS ₹":"₹")+Math.abs(n).toFixed(2);
   }
 
-  document.addEventListener("click",function(e){
-    if(e.target && e.target.id==="saveStock") saveStock();
-  });
+  async function updateDashboard(){
+    try{
+      const snap=await db.collection("stock").doc("STOCK_DATA").get();
+      const d=snap.exists?(snap.data()||{}):{};
+      const history=d.monthlyProfitHistory||{};
+      const current=monthKey();
+      const customers=Array.isArray(window.data)?window.data.length:0;
+      const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+      set("dashCustomers",customers);
+      set("dashFull",Number(d.stockFull||0));
+      set("dashEmpty",Number(d.stockEmpty||0));
+      const h=Array.isArray(window.history)?window.history:[];
+      set("dashBooking",h.filter(x=>x.type==="BOOKING NOW"&&x.date===today()).length);
+      set("dashDelivery",h.filter(x=>x.type==="DELIVERY DONE"&&x.date===today()).length);
+      updateProfitHighlight(Number(history[current]||0));
+    }catch(e){console.error("Dashboard error:",e);}
+  }
 
+  async function saveStock(){
+    const current=monthKey();
+    try{
+      const ref=db.collection("stock").doc("STOCK_DATA");
+      const snap=await ref.get();
+      const old=snap.exists?(snap.data()||{}):{};
+      const monthly={...(old.monthlyProfitHistory||{})};
+      if(monthly[current]===undefined)monthly[current]=0;
+      const total=Number(document.getElementById("stockTotal").value||0);
+      const full=Number(document.getElementById("stockFull").value||0);
+      const empty=Number(document.getElementById("stockEmpty").value||0);
+      const purchase=Number(document.getElementById("purchasePrice").value||0);
+      const sell=Number(document.getElementById("sellPrice").value||0);
+      const warning=document.getElementById("stockWarning");
+      if(full+empty!==total){
+        warning.textContent="⚠️ TOTAL GAS TANK = FULL GAS TANK + EMPTY असणे आवश्यक आहे.";
+        warning.style.display="block";
+        alert("❌ STOCK MISMATCH: Total = Full + Empty असावे.");
+        return;
+      }
+      warning.style.display="none";
+      const vals=calcValues({stockTotal:total,stockFull:full,purchasePrice:purchase});
+      await ref.set({stockTotal:total,stockFull:full,stockEmpty:empty,purchasePrice:purchase,sellPrice:sell,stockValue:vals.stockValue,fullStockValue:vals.fullStockValue,totalProfit:monthly[current],monthlyProfitHistory:monthly},{merge:true});
+      document.getElementById("stockValue").value=vals.stockValue;
+      document.getElementById("fullStockValue").value=vals.fullStockValue;
+      document.getElementById("totalProfit").value=monthly[current];
+      renderHistory(monthly);
+      updateDashboard();
+      updateProfitHighlight(monthly[current]);
+      alert("Stock saved successfully");
+    }catch(e){console.error("Stock save error:",e);alert("Stock save failed");}
+  }
+  document.addEventListener("click",e=>{if(e.target&&e.target.id==="saveStock")saveStock();});
   document.addEventListener("DOMContentLoaded",loadStock);
   loadStock();
 })();
