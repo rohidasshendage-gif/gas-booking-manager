@@ -12,7 +12,7 @@ header{background:#d71920;color:#fff;padding:18px;text-align:center;font-size:22
 .tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
 .tabs button{flex:1;min-width:115px;border:0;border-radius:9px;padding:12px 8px;background:#dfe5eb;font-weight:800}
 .tabs button.active{background:#d71920;color:#fff}
-.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px #0001;overflow:hidden}
 label{display:block;font-weight:800;margin:10px 0 5px}
 input,select{width:100%;padding:12px;border:1px solid #cbd3dc;border-radius:8px;font-size:16px;text-transform:uppercase}
 input::placeholder{text-transform:uppercase}
@@ -52,6 +52,14 @@ input::placeholder{text-transform:uppercase}
  .compact-actions .btn{padding:5px 4px;font-size:10px}
  .otp-input{width:75px!important}
 }
+
+.tab-info{margin:4px 0 14px;line-height:1.5}
+.booking-table th:nth-child(1),.booking-table td:nth-child(1){min-width:45px;text-align:center}
+.booking-table th:nth-child(2),.booking-table td:nth-child(2){min-width:140px}
+.booking-table th:nth-child(3),.booking-table td:nth-child(3){min-width:105px}
+.booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:125px}
+.booking-table th:nth-child(5),.booking-table td:nth-child(5){min-width:70px}
+.compact-table td{vertical-align:middle}
 </style>
 </head>
 <body>
@@ -68,7 +76,7 @@ input::placeholder{text-transform:uppercase}
 
 <section id="addCustomer">
 <div class="card">
-<h2>👤 CUSTOMER ADD</h2>
+<h2>👤 CUSTOMER ADD</h2><p class="small tab-info">नवीन ग्राहकाची माहिती भरा आणि SAVE CUSTOMER करा. 26 दिवसांचा BOOKING CYCLE DELIVERY DATE पासून मोजला जाईल.</p>
 <label>CUSTOMER NUMBER</label><input id="customerNo" inputmode="numeric" placeholder="CUSTOMER NUMBER">
 <label>CUSTOMER NAME</label><input id="name" placeholder="CUSTOMER NAME">
 <label>MOBILE NUMBER</label><input id="mobile" maxlength="10" inputmode="numeric" placeholder="MOBILE NUMBER">
@@ -83,14 +91,14 @@ input::placeholder{text-transform:uppercase}
 <section id="bookingTab" class="hidden">
 <div class="card">
 <h2>📅 BOOKING</h2>
-<p class="small">26 दिवस पूर्ण झालेले ग्राहक.</p>
+<p class="small tab-info">या TAB मध्ये 26 दिवस पूर्ण झालेले ग्राहक दिसतील. BOOKING NOW करून पुढील प्रक्रियेसाठी पाठवा.</p>
 <div id="bookingDueList"></div>
 </div>
 </section>
 
 <section id="customers" class="hidden">
 <div class="card">
-<h2>👥 ALL CUSTOMERS</h2>
+<h2>👥 ALL CUSTOMERS</h2><p class="small tab-info">सर्व ग्राहकांची माहिती येथे दिसेल. SEARCH करून ग्राहक शोधा किंवा EDIT / DEL वापरा.</p>
 <input id="customerSearch" placeholder="SEARCH CUSTOMER NAME / NUMBER / MOBILE" oninput="renderCustomers()">
 <div id="customerList"></div>
 </div>
@@ -99,7 +107,7 @@ input::placeholder{text-transform:uppercase}
 <section id="bookingNowTab" class="hidden">
 <div class="card">
 <h2>🔥 BOOKING NOW CUSTOMERS</h2>
-<p class="small">BOOKING NOW केलेले ग्राहक.</p>
+<p class="small tab-info">या TAB मध्ये BOOKING NOW केलेले ग्राहक दिसतील. DELIVERY NOW करून डिलिव्हरी पूर्ण करा.</p>
 <div id="bookingNowList"></div>
 </div>
 </section>
@@ -132,7 +140,14 @@ function fmt(s){if(!s)return "-";const a=s.split("-");return a[2]+"/"+a[1]+"/"+a
 function norm(s){return String(s||"").trim().toUpperCase().replace(/\s+/g," ")}
 function esc(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 function save(){localStorage.setItem(DATA_KEY,JSON.stringify(data));localStorage.setItem(HIST_KEY,JSON.stringify(history));renderAll()}
-function showTab(id,btn){document.querySelectorAll("section").forEach(x=>x.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");renderAll()}
+function showTab(id,btn){
+ document.querySelectorAll("section").forEach(x=>x.classList.add("hidden"));
+ const section=document.getElementById(id);
+ if(section)section.classList.remove("hidden");
+ document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+ if(btn)btn.classList.add("active");
+ renderAll();
+}
 function duplicate(no,name,mobile,ignoreId=null){return data.find(x=>x.id!==ignoreId&&((no&&norm(x.customerNo)===norm(no))||(name&&norm(x.name)===norm(name))||(mobile&&norm(x.mobile)===norm(mobile))))}
 
 function addCustomer(){
@@ -187,6 +202,7 @@ function closeEdit(){editModal.classList.add("hidden")}
 function saveEdit(){
  const id=Number(editId.value),no=editNo.value.trim(),name=norm(editName.value),mobile=editMobile.value.trim(),otp=editOtp.value.trim(),company=editCompany.value,date=editDate.value;
  if(!no||!name||!date){alert("REQUIRED DETAILS MISSING.");return}
+ if(otp && !/^\d{4,6}$/.test(otp)){alert("OTP 4 TO 6 DIGITS ASAVA.");return}
  const d=duplicate(no,name,mobile,id);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!");return}
  const x=data.find(a=>a.id===id);if(!x)return;
  x.customerNo=no;x.name=name;x.mobile=mobile;x.otp=otp;x.company=company;x.deliveryDate=date;x.nextDate=addDays(date,26);save();closeEdit();alert("CUSTOMER UPDATED ✅");
@@ -207,16 +223,16 @@ function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
- box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+ box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
  const list=data.filter(x=>!q||norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q));
- document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
+ document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
 }
 function renderBookingNow(){
  const list=data.filter(x=>x.status==="BOOKING NOW").slice(0,15);
- document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+ document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
 }
 
 document.addEventListener("input",e=>{if(e.target.matches("input[type=text],input:not([type]),input[type=tel]"))e.target.value=e.target.value.toUpperCase()});
