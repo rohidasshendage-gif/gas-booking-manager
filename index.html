@@ -54,16 +54,15 @@ input::placeholder{text-transform:uppercase}
 }
 
 .tab-info{margin:4px 0 14px;line-height:1.5}
-.booking-table th:nth-child(1),.booking-table td:nth-child(1){min-width:45px;text-align:center}
-.booking-table th:nth-child(2),.booking-table td:nth-child(2){min-width:140px}
-.booking-table th:nth-child(3),.booking-table td:nth-child(3){min-width:105px}
-.booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:125px}
-.booking-table th:nth-child(5),.booking-table td:nth-child(5){min-width:70px}
+.booking-table th:nth-child(1),.booking-table td:nth-child(1){min-width:140px}
+.booking-table th:nth-child(2),.booking-table td:nth-child(2){min-width:105px}
+.booking-table th:nth-child(3),.booking-table td:nth-child(3){min-width:125px}
+.booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:70px}
 .compact-table td{vertical-align:middle}
 </style>
 </head>
 <body>
-<header>🔥 GAS BOOKING MANAGER</header>
+<header>🔥 GAS BOOKING MANAGER</header><div id="firebaseStatus" style="text-align:center;padding:7px;font-size:12px;font-weight:800;background:#fff3cd;color:#7a5a00">☁️ FIREBASE CONNECTING...</div>
 <div class="wrap">
 
 <div class="tabs">
@@ -127,7 +126,89 @@ input::placeholder{text-transform:uppercase}
 </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDlouTH9gU6eIv4Icj2EzKI-x-eeZCEcUw",
+  authDomain: "gas-booking-manager.firebaseapp.com",
+  projectId: "gas-booking-manager",
+  storageBucket: "gas-booking-manager.firebasestorage.app",
+  messagingSenderId: "475178783381",
+  appId: "1:475178783381:web:2d0faf5d46dddd6158c19c",
+  measurementId: "G-JWDVY5YL5V"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const CUSTOMERS_COL = "customers";
+const HISTORY_COL = "history";
+let cloudLoaded = false;
+let cloudBusy = false;
+
+async function loadFromFirebase(){
+  try{
+    const [cs, hs] = await Promise.all([
+      db.collection(CUSTOMERS_COL).get(),
+      db.collection(HISTORY_COL).get()
+    ]);
+
+    // Only documents created by this app are used. This safely ignores
+    // any test/manual document that was created in the Firebase console.
+    const cloudCustomers = cs.docs.map(d=>d.data()).filter(x=>x && x.id!=null);
+    const cloudHistory = hs.docs.map(d=>d.data()).filter(x=>x && x.id!=null);
+
+    if(cloudCustomers.length){
+      data = cloudCustomers.sort((a,b)=>(b.id||0)-(a.id||0));
+    } else if(data.length){
+      // First-time setup: move existing local customers to Firebase.
+      await syncToFirebase();
+    } else {
+      data = [];
+    }
+
+    if(cloudHistory.length){
+      history = cloudHistory.sort((a,b)=>(b.id||0)-(a.id||0));
+    }
+
+    localStorage.setItem(DATA_KEY,JSON.stringify(data));
+    localStorage.setItem(HIST_KEY,JSON.stringify(history));
+    cloudLoaded = true;
+    const st=document.getElementById("firebaseStatus");
+    if(st){st.textContent="☁️ FIREBASE CONNECTED";st.style.background="#dff3e5";st.style.color="#08752e";}
+    renderAll();
+  }catch(e){
+    console.error("FIREBASE LOAD ERROR",e);
+    const st=document.getElementById("firebaseStatus");
+    if(st){st.textContent="⚠️ FIREBASE NOT CONNECTED";st.style.background="#ffe0e0";st.style.color="#a40000";}
+    alert("FIREBASE CONNECT FAILED. FIRESTORE RULES / INTERNET CHECK KARA.");
+  }
+}
+
+async function syncToFirebase(deletedCustomerId=null){
+  if(cloudBusy)return;
+  cloudBusy=true;
+  try{
+    // Firestore batch limit is 500 writes. Split into safe chunks.
+    const customerWrites = data.map(x=>({ref:db.collection(CUSTOMERS_COL).doc(String(x.id)),data:x}));
+    const historyWrites = history.slice(0,500).map(x=>({ref:db.collection(HISTORY_COL).doc(String(x.id)),data:x}));
+    if(deletedCustomerId!==null){
+      customerWrites.push({ref:db.collection(CUSTOMERS_COL).doc(String(deletedCustomerId)),delete:true});
+    }
+    const writes=[...customerWrites,...historyWrites];
+    for(let i=0;i<writes.length;i+=450){
+      const batch=db.batch();
+      writes.slice(i,i+450).forEach(w=>{
+        if(w.delete) batch.delete(w.ref); else batch.set(w.ref,w.data);
+      });
+      await batch.commit();
+    }
+  }catch(e){
+    console.error("FIREBASE SAVE ERROR",e);
+    alert("FIREBASE SAVE FAILED. FIRESTORE RULES / INTERNET CHECK KARA.");
+  }finally{
+    cloudBusy=false;
+  }
+}
 
 const DATA_KEY="GAS_CUSTOMERS_V3";
 const HIST_KEY="GAS_HISTORY_V3";
@@ -139,7 +220,12 @@ function addDays(s,n){const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);r
 function fmt(s){if(!s)return "-";const a=s.split("-");return a[2]+"/"+a[1]+"/"+a[0]}
 function norm(s){return String(s||"").trim().toUpperCase().replace(/\s+/g," ")}
 function esc(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function save(){localStorage.setItem(DATA_KEY,JSON.stringify(data));localStorage.setItem(HIST_KEY,JSON.stringify(history));renderAll()}
+function save(deletedCustomerId=null){
+ localStorage.setItem(DATA_KEY,JSON.stringify(data));
+ localStorage.setItem(HIST_KEY,JSON.stringify(history));
+ renderAll();
+ syncToFirebase(deletedCustomerId);
+}
 function showTab(id,btn){
  document.querySelectorAll("section").forEach(x=>x.classList.add("hidden"));
  const section=document.getElementById(id);
@@ -207,7 +293,7 @@ function saveEdit(){
  const x=data.find(a=>a.id===id);if(!x)return;
  x.customerNo=no;x.name=name;x.mobile=mobile;x.otp=otp;x.company=company;x.deliveryDate=date;x.nextDate=addDays(date,26);save();closeEdit();alert("CUSTOMER UPDATED ✅");
 }
-function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!==id);save()}}
+function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!==id);save(id)}}
 
 function deleteBookingNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
@@ -223,21 +309,22 @@ function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
- box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+ box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
  const list=data.filter(x=>!q||norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q));
- document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
+ document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
 }
 function renderBookingNow(){
  const list=data.filter(x=>x.status==="BOOKING NOW").slice(0,15);
- document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO</th><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+ document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
 }
 
 document.addEventListener("input",e=>{if(e.target.matches("input[type=text],input:not([type]),input[type=tel]"))e.target.value=e.target.value.toUpperCase()});
 document.getElementById("deliveryDate").value=today();
 renderAll();
+loadFromFirebase();
 </script>
 </body>
 </html>
