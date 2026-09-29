@@ -75,7 +75,7 @@ input::placeholder{text-transform:uppercase}
 
 <section id="addCustomer">
 <div class="card">
-<h2>👤 CUSTOMER ADD</h2><p class="small tab-info">नवीन ग्राहकाची माहिती भरा आणि SAVE CUSTOMER करा. 26 दिवसांचा BOOKING CYCLE DELIVERY DATE पासून मोजला जाईल.</p>
+<h2>👤 CUSTOMER ADD</h2>
 <label>CUSTOMER NUMBER</label><input id="customerNo" inputmode="numeric" placeholder="CUSTOMER NUMBER">
 <label>CUSTOMER NAME</label><input id="name" placeholder="CUSTOMER NAME">
 <label>MOBILE NUMBER</label><input id="mobile" maxlength="10" inputmode="numeric" placeholder="MOBILE NUMBER">
@@ -90,14 +90,14 @@ input::placeholder{text-transform:uppercase}
 <section id="bookingTab" class="hidden">
 <div class="card">
 <h2>📅 BOOKING</h2>
-<p class="small tab-info">या TAB मध्ये 26 दिवस पूर्ण झालेले ग्राहक दिसतील. BOOKING NOW करून पुढील प्रक्रियेसाठी पाठवा.</p>
+
 <div id="bookingDueList"></div>
 </div>
 </section>
 
 <section id="customers" class="hidden">
 <div class="card">
-<h2>👥 ALL CUSTOMERS</h2><p class="small tab-info">सर्व ग्राहकांची माहिती येथे दिसेल. SEARCH करून ग्राहक शोधा किंवा EDIT / DEL वापरा.</p>
+<h2>👥 ALL CUSTOMERS</h2>
 <input id="customerSearch" placeholder="SEARCH CUSTOMER NAME / NUMBER / MOBILE" oninput="renderCustomers()">
 <div id="customerList"></div>
 </div>
@@ -106,7 +106,7 @@ input::placeholder{text-transform:uppercase}
 <section id="bookingNowTab" class="hidden">
 <div class="card">
 <h2>🔥 BOOKING NOW CUSTOMERS</h2>
-<p class="small tab-info">या TAB मध्ये BOOKING NOW केलेले ग्राहक दिसतील. DELIVERY NOW करून डिलिव्हरी पूर्ण करा.</p>
+
 <div id="bookingNowList"></div>
 </div>
 </section>
