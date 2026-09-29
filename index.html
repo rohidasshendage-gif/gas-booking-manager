@@ -54,10 +54,10 @@ input::placeholder{text-transform:uppercase}
 }
 
 .tab-info{margin:4px 0 14px;line-height:1.5}
-.booking-table th:nth-child(1),.booking-table td:nth-child(1){min-width:140px}
-.booking-table th:nth-child(2),.booking-table td:nth-child(2){min-width:105px}
-.booking-table th:nth-child(3),.booking-table td:nth-child(3){min-width:125px}
-.booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:70px}
+.booking-table th:nth-child(1),.booking-table td:nth-child(1){min-width:55px;width:55px}
+.booking-table th:nth-child(2),.booking-table td:nth-child(2){min-width:140px}
+.booking-table th:nth-child(3),.booking-table td:nth-child(3){min-width:105px}
+.booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:125px}
 .compact-table td{vertical-align:middle}
 </style>
 </head>
@@ -309,16 +309,16 @@ function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
- box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+ box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
  const list=data.filter(x=>!q||norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q));
- document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
+ document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
 }
 function renderBookingNow(){
  const list=data.filter(x=>x.status==="BOOKING NOW").slice(0,15);
- document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+ document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
 }
 
 document.addEventListener("input",e=>{if(e.target.matches("input[type=text],input:not([type]),input[type=tel]"))e.target.value=e.target.value.toUpperCase()});
