@@ -60,12 +60,21 @@ input::placeholder{text-transform:uppercase}
 .booking-table th:nth-child(4),.booking-table td:nth-child(4){min-width:125px}
 .compact-table td{vertical-align:middle}
 </style>
+
+<style>
+.stock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.stock-grid label{display:flex;flex-direction:column;gap:5px;font-weight:600}
+.stock-grid input{padding:9px}
+</style>
+
 </head>
 <body>
 <header>🔥 GAS BOOKING MANAGER</header><div id="firebaseStatus" style="text-align:center;padding:7px;font-size:12px;font-weight:800;background:#fff3cd;color:#7a5a00">☁️ FIREBASE CONNECTING...</div>
 <div class="wrap">
 
 <div class="tabs">
+
+<button onclick="showTab('stock',this)">STOCK</button>
 <button class="active" onclick="showTab('addCustomer',this)">CUSTOMER ADD</button>
 <button onclick="showTab('bookingTab',this)">BOOKING</button>
 <button onclick="showTab('customers',this)">CUSTOMER</button>
@@ -249,7 +258,7 @@ function addCustomer(){
 }
 function clearAdd(){customerNo.value="";name.value="";mobile.value="";deliveryDate.value=today()}
 
-function bookingNow(id){
+async function bookingNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
  let otp=prompt("CUSTOMER OTP ENTER करा");
  if(otp===null)return;
@@ -258,17 +267,28 @@ function bookingNow(id){
    alert("❌ OTP ENTER KARA. OTP 4 TO 6 DIGITS ASAVA.");
    return;
  }
+ const stockResult = await window.moveGasStock(-1,+1,"BOOKING");
+ if(!stockResult.ok){
+   alert(stockResult.message);
+   return;
+ }
  x.otp=otp;
  x.status="BOOKING NOW";
  x.bookingDate=today();
  history.unshift({id:Date.now(),type:"BOOKING NOW",date:today(),customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
- save();alert("BOOKING NOW SAVED ✅");showTab("bookingNowTab",document.querySelectorAll(".tabs button")[3]);
+ save();alert("BOOKING NOW SAVED ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSALE: ₹"+stockResult.sell+"\nPURCHASE: ₹"+stockResult.purchase+"\nPROFIT/LOSS: ₹"+stockResult.saleProfit);
+ showTab("bookingNowTab",document.querySelectorAll(".tabs button")[4]);
 }
-function deliveryNow(id){
+async function deliveryNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
  const otp=prompt("CUSTOMER OTP ENTER करा");
  if(otp===null)return;
- if(String(otp).trim()!==String(x.otp||"").trim()){alert("❌ OTP NOT MATCHED.");return}
+ if(String(otp).trim()!==String(x.otp||"")){alert("❌ OTP NOT MATCHED.");return}
+ const stockResult = await window.moveGasStock(+1,-1,"DELIVERY");
+ if(!stockResult.ok){
+   alert(stockResult.message);
+   return;
+ }
  const d=today();
  x.deliveryDate=d;
  x.nextDate=addDays(d,26);
@@ -276,8 +296,8 @@ function deliveryNow(id){
  x.bookingDate="";
  history.unshift({id:Date.now(),type:"DELIVERY DONE",date:d,customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
  save();
- alert("DELIVERY DONE ✅\nNEXT BOOKING: "+fmt(x.nextDate));
- showTab("bookingTab",document.querySelectorAll(".tabs button")[1]);
+ alert("DELIVERY DONE ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSTOCK ADDED: ₹"+stockResult.purchase);
+ showTab("bookingTab",document.querySelectorAll(".tabs button")[2]);
 }
 function editCustomer(id){
  const x=data.find(a=>a.id===id);if(!x)return;
@@ -326,5 +346,135 @@ document.getElementById("deliveryDate").value=today();
 renderAll();
 loadFromFirebase();
 </script>
+
+<section id="stock" class="hidden">
+  <div class="card">
+    <h2>STOCK</h2>
+    <div class="stock-grid">
+      <label>Total Gas Tank
+        <input id="stockTotal" type="number" min="0" value="0">
+      </label>
+      <label>Full
+        <input id="stockFull" type="number" min="0" value="0">
+      </label>
+      <label>Empty
+        <input id="stockEmpty" type="number" min="0" value="0">
+      </label>
+      <label>Purchase Price
+        <input id="purchasePrice" type="number" min="0" step="0.01" value="0">
+      </label>
+      <label>Sell Price
+        <input id="sellPrice" type="number" min="0" step="0.01" value="0">
+      </label>
+      <label>Total Profit / Loss
+        <input id="totalProfit" type="number" step="0.01" value="0" readonly>
+      </label>
+      <label>Current Full Stock Value
+        <input id="currentStockValue" type="number" step="0.01" value="0" readonly>
+      </label>
+    </div>
+    <button type="button" id="saveStock">SAVE STOCK</button>
+  </div>
+</section>
+
+
+<script>
+(function(){
+  const ids = ["stockTotal","stockFull","stockEmpty","purchasePrice","sellPrice","totalProfit","currentStockValue"];
+
+  async function loadStock(){
+    try{
+      const snap = await db.collection("stock").doc("STOCK_DATA").get();
+      if(snap.exists){
+        const d=snap.data()||{};
+        ids.forEach(id=>{
+          if(d[id] !== undefined && document.getElementById(id))
+            document.getElementById(id).value=d[id];
+        });
+      }
+    }catch(e){ console.error("Stock load error:",e); }
+  }
+
+  async function moveStock(fullDelta, emptyDelta, mode){
+    const ref = db.collection("stock").doc("STOCK_DATA");
+    let result = null;
+    await db.runTransaction(async tx=>{
+      const snap = await tx.get(ref);
+      const d = snap.exists ? (snap.data() || {}) : {};
+      const full = Number(d.stockFull || 0);
+      const empty = Number(d.stockEmpty || 0);
+      const purchase = Number(d.purchasePrice || 0);
+      const sell = Number(d.sellPrice || 0);
+      const profit = Number(d.totalProfit || 0);
+      const newFull = full + fullDelta;
+      const newEmpty = empty + emptyDelta;
+
+      if(newFull < 0){
+        result = {ok:false, message:"❌ FULL STOCK उपलब्ध नाही."};
+        return;
+      }
+      if(newEmpty < 0){
+        result = {ok:false, message:"❌ EMPTY STOCK उपलब्ध नाही."};
+        return;
+      }
+
+      // BOOKING NOW = one full cylinder is sold.
+      // Delivery NOW = returned empty is converted back to full stock.
+      const saleProfit = mode === "BOOKING" ? (sell - purchase) : 0;
+      const newProfit = profit + saleProfit;
+      const newStockValue = newFull * purchase;
+
+      tx.set(ref,{
+        stockFull:newFull,
+        stockEmpty:newEmpty,
+        stockTotal:Number(d.stockTotal || 0),
+        purchasePrice:purchase,
+        sellPrice:sell,
+        totalProfit:newProfit,
+        currentStockValue:newStockValue
+      },{merge:true});
+      result = {ok:true, full:newFull, empty:newEmpty, profit:newProfit,
+        saleProfit:saleProfit, stockValue:newStockValue, purchase:purchase, sell:sell};
+    });
+
+    if(!result || !result.ok) return result || {ok:false,message:"Stock update failed"};
+
+    const fullEl=document.getElementById("stockFull");
+    const emptyEl=document.getElementById("stockEmpty");
+    const profitEl=document.getElementById("totalProfit");
+    const valueEl=document.getElementById("currentStockValue");
+    if(fullEl) fullEl.value=result.full;
+    if(emptyEl) emptyEl.value=result.empty;
+    if(profitEl) profitEl.value=result.profit;
+    if(valueEl) valueEl.value=result.stockValue;
+    return result;
+  }
+
+  window.moveGasStock = moveStock;
+
+  async function saveStock(){
+    const data={};
+    ids.forEach(id=>{
+      const el=document.getElementById(id);
+      data[id]=el ? Number(el.value||0) : 0;
+    });
+    try{
+      await db.collection("stock").doc("STOCK_DATA").set(data,{merge:true});
+      alert("Stock saved successfully");
+    }catch(e){
+      console.error("Stock save error:",e);
+      alert("Stock save failed");
+    }
+  }
+
+  document.addEventListener("click",function(e){
+    if(e.target && e.target.id==="saveStock") saveStock();
+  });
+
+  document.addEventListener("DOMContentLoaded",loadStock);
+  loadStock();
+})();
+</script>
+
 </body>
 </html>
