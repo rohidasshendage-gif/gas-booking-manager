@@ -78,7 +78,7 @@ input::placeholder{text-transform:uppercase}
 .profit-box{background:#f5f7fa;border-radius:14px;padding:16px;text-align:center;border:2px solid #e1e5ea;margin:12px 0}
 .profit-box .d-label{font-size:12px;font-weight:900}
 .profit-box .d-value{font-size:28px;font-weight:900;margin-top:5px}
-.stock-warning{display:none;margin:8px 0;padding:9px;border-radius:9px;background:#fff3cd;color:#7a5a00;font-weight:800;font-size:12px}
+.payment-dashboard-grid{margin-top:0}.payment-dashboard-grid .dash-card{background:#fff;border:2px solid #e1e5ea}.stock-warning{display:none;margin:8px 0;padding:9px;border-radius:9px;background:#fff3cd;color:#7a5a00;font-weight:800;font-size:12px}
 @media(max-width:420px){.dashboard-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -95,6 +95,7 @@ input::placeholder{text-transform:uppercase}
 <button onclick="showTab('bookingTab',this)">📅 BOOKING</button>
 <button onclick="showTab('customers',this)">👥 CUSTOMER</button>
 <button onclick="showTab('bookingNowTab',this)">🔥 BOOKING NOW</button>
+
 </div>
 </div>
 
@@ -107,7 +108,14 @@ input::placeholder{text-transform:uppercase}
 <div class="dash-card"><div class="d-label">TODAY BOOKING</div><div class="d-value" id="dashBooking">0</div></div>
 <div class="dash-card"><div class="d-label">TODAY DELIVERY</div><div class="d-value" id="dashDelivery">0</div></div>
 <div class="dash-card"><div class="d-label">CURRENT MONTH PROFIT</div><div class="d-value" id="dashProfit">₹0</div></div>
+</div>
+<div class="dashboard-grid payment-dashboard-grid">
+<div class="dash-card"><div class="d-label">SHARADHA TOTAL</div><div class="d-value" id="paySharadha">₹0</div></div>
+<div class="dash-card"><div class="d-label">ROHIDAS TOTAL</div><div class="d-value" id="payRohidas">₹0</div></div>
+<div class="dash-card"><div class="d-label">PAY LATER TOTAL</div><div class="d-value" id="payLater">₹0</div></div>
 </div></section>
+
+
 
 
 
@@ -149,6 +157,8 @@ input::placeholder{text-transform:uppercase}
 <div id="bookingNowList"></div>
 </div>
 </section>
+
+
 <div id="editModal" class="modal hidden">
 <div class="modalbox">
 <h2>EDIT CUSTOMER</h2>
@@ -288,46 +298,68 @@ function addCustomer(){
 }
 function clearAdd(){customerNo.value="";name.value="";mobile.value="";deliveryDate.value=today()}
 
-async function bookingNow(id){
- const x=data.find(a=>a.id===id);if(!x)return;
- let otp=prompt("CUSTOMER OTP ENTER करा");
- if(otp===null)return;
- otp=String(otp).trim();
- if(!/^\d{4,6}$/.test(otp)){
-   alert("❌ OTP ENTER KARA. OTP 4 TO 6 DIGITS ASAVA.");
-   return;
- }
- const stockResult = await window.moveGasStock(-1,+1,"BOOKING");
- if(!stockResult.ok){
-   alert(stockResult.message);
-   return;
- }
- x.otp=otp;
- x.status="BOOKING NOW";
- x.bookingDate=today();
- history.unshift({id:Date.now(),type:"BOOKING NOW",date:today(),customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
- save();alert("BOOKING NOW SAVED ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSALE: ₹"+stockResult.sell+"\nPURCHASE: ₹"+stockResult.purchase+"\nPROFIT/LOSS: ₹"+stockResult.saleProfit);
- showTab("bookingNowTab",document.querySelectorAll(".tabs button")[5]);
+function closePaymentModal(){
+ const m=document.getElementById("paymentModal");if(m)m.remove();
 }
-async function deliveryNow(id){
+function openBookingPaymentModal(id){
  const x=data.find(a=>a.id===id);if(!x)return;
- const otp=prompt("CUSTOMER OTP ENTER करा");
- if(otp===null)return;
- if(String(otp).trim()!==String(x.otp||"")){alert("❌ OTP NOT MATCHED.");return}
- const stockResult = await window.moveGasStock(+1,-1,"DELIVERY");
- if(!stockResult.ok){
-   alert(stockResult.message);
-   return;
- }
+ closePaymentModal();
+ const sell=Number(document.getElementById("sellPrice")?.value||window.currentSellPrice||0);
+ const modal=document.createElement("div");modal.id="paymentModal";modal.className="modal";
+ modal.innerHTML=`<div class="modalbox">
+ <h2>🔥 BOOKING NOW</h2>
+ <div class="item"><b>${esc(x.name)}</b><div class="small">CUSTOMER NO: ${esc(x.customerNo)}</div><div class="small">BOOKING AMOUNT: ₹${sell.toFixed(2)}</div></div>
+ <label>PAYMENT OPTION</label>
+ <div class="actions"><button type="button" class="btn green" id="pmCash">CASH</button><button type="button" class="btn blue" id="pmOnline">ONLINE</button><button type="button" class="btn red" id="pmLater">PAY LATER</button></div>
+ <input type="hidden" id="pmMethod" value="CASH">
+ <div id="recipientBox"><label>RECEIVED BY</label><div class="actions"><button type="button" class="btn green" id="pmSharadha">SHARADHA</button><button type="button" class="btn blue" id="pmRohidas">ROHIDAS</button></div><input type="hidden" id="pmRecipient" value="SHARADHA"></div>
+ <label>OTP</label><input id="pmOtp" maxlength="6" inputmode="numeric" placeholder="ENTER OTP">
+ <div class="actions"><button type="button" class="btn primary" id="pmSave">✓ SAVE BOOKING</button><button type="button" class="btn red" onclick="closePaymentModal()">CANCEL</button></div>
+ </div>`;
+ document.body.appendChild(modal);
+ const setMethod=(m)=>{document.getElementById("pmMethod").value=m;document.getElementById("pmCash").className="btn "+(m==="CASH"?"green":"blue");document.getElementById("pmOnline").className="btn "+(m==="ONLINE"?"green":"blue");document.getElementById("pmLater").className="btn "+(m==="PAY LATER"?"green":"red");document.getElementById("recipientBox").style.display=m==="PAY LATER"?"none":"block";};
+ const setRecipient=(r)=>{document.getElementById("pmRecipient").value=r;document.getElementById("pmSharadha").className="btn "+(r==="SHARADHA"?"green":"blue");document.getElementById("pmRohidas").className="btn "+(r==="ROHIDAS"?"green":"blue");};
+ document.getElementById("pmCash").onclick=()=>setMethod("CASH");document.getElementById("pmOnline").onclick=()=>setMethod("ONLINE");document.getElementById("pmLater").onclick=()=>setMethod("PAY LATER");
+ document.getElementById("pmSharadha").onclick=()=>setRecipient("SHARADHA");document.getElementById("pmRohidas").onclick=()=>setRecipient("ROHIDAS");
+ document.getElementById("pmSave").onclick=async()=>{
+   const otp=String(document.getElementById("pmOtp").value||"").trim();
+   if(!/^\d{4,6}$/.test(otp)){alert("❌ OTP 4 TO 6 DIGITS ASAVA.");return;}
+   const method=document.getElementById("pmMethod").value, recipient=method==="PAY LATER"?"":document.getElementById("pmRecipient").value;
+   const stockResult=await window.moveGasStock(-1,+1,"BOOKING");
+   if(!stockResult.ok){alert(stockResult.message);return;}
+   const bookingId=Date.now();
+   x.otp=otp;x.status="BOOKING NOW";x.bookingDate=today();
+   x.bookingPaymentMethod=method;x.bookingRecipient=recipient;x.bookingAmount=sell;x.bookingPaymentReceived=method!=="PAY LATER";x.bookingId=bookingId;x.bookingPurchasePrice=Number(stockResult.purchase||0);x.bookingSellPrice=Number(stockResult.sell||0);
+   history.unshift({id:bookingId,type:"BOOKING NOW",date:today(),customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp,paymentMethod:method,recipient:recipient,amount:sell,sellPrice:Number(stockResult.sell||0),purchasePrice:Number(stockResult.purchase||0)});
+   save();closePaymentModal();alert("BOOKING NOW SAVED ✅");showTab("bookingNowTab",document.querySelectorAll(".tabs button")[5]);
+ };
+ setMethod("CASH");setRecipient("SHARADHA");
+}
+async function bookingNow(id){openBookingPaymentModal(id)}
+
+async function deliveryNow(id, silent=false){
+ const x=data.find(a=>a.id===id);if(!x)return {ok:false};
+ const stockResult=await window.moveGasStock(+1,-1,"DELIVERY");
+ if(!stockResult.ok){if(!silent)alert(stockResult.message);return stockResult;}
  const d=today();
- x.deliveryDate=d;
- x.nextDate=addDays(d,26);
- x.status="CUSTOMER";
- x.bookingDate="";
- history.unshift({id:Date.now(),type:"DELIVERY DONE",date:d,customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp});
+ x.deliveryDate=d;x.nextDate=addDays(d,26);x.status="CUSTOMER";x.bookingDate="";
+ history.unshift({id:Date.now(),type:"DELIVERY DONE",date:d,customerNo:x.customerNo,name:x.name,mobile:x.mobile,otp:x.otp,paymentMethod:x.bookingPaymentMethod||"",recipient:x.bookingRecipient||"",amount:Number(x.bookingAmount||0),purchasePrice:Number(x.bookingPurchasePrice||stockResult.purchase||0),bookingId:x.bookingId||null});
  save();
- alert("DELIVERY DONE ✅\nFULL STOCK: "+stockResult.full+"\nEMPTY STOCK: "+stockResult.empty+"\nSTOCK ADDED: ₹"+stockResult.purchase);
- showTab("bookingTab",document.querySelectorAll(".tabs button")[3]);
+ if(!silent) {alert("DELIVERY DONE ✅");showTab("bookingTab",document.querySelectorAll(".tabs button")[3]);}
+ return {ok:true};
+}
+async function deliveryAll(){
+ const list=data.filter(x=>x.status==="BOOKING NOW");
+ if(!list.length){alert("NO BOOKING NOW CUSTOMER.");return;}
+ if(!confirm("DELIVERY ALL " + list.length + " BOOKING NOW CUSTOMERS?"))return;
+ let done=0;
+ for(const x of list){
+   const r=await deliveryNow(x.id,true);
+   if(!r.ok){alert("DELIVERY STOPPED AFTER "+done+" CUSTOMER(S).\n\n"+(r.message||"STOCK UPDATE FAILED."));break;}
+   done++;
+ }
+ renderAll();updateDashboard();
+ alert("DELIVERY COMPLETED: "+done+" / "+list.length);
 }
 function editCustomer(id){
  const x=data.find(a=>a.id===id);if(!x)return;
@@ -348,25 +380,19 @@ function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!=
 function deleteBookingNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
  if(!confirm("DELETE THIS BOOKING NOW ENTRY?"))return;
- x.status="CUSTOMER";
- x.bookingDate="";
- x.otp="";
- save();
- alert("BOOKING NOW ENTRY DELETED ✅");
+ x.status="CUSTOMER";x.bookingDate="";x.otp="";x.bookingPaymentMethod="";x.bookingRecipient="";x.bookingAmount=0;
+ save();alert("BOOKING NOW ENTRY DELETED ✅");
 }
 
-function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
+function renderAll(){renderBooking();renderCustomers();renderBookingNow();renderPaymentReport()}
 function renderBooking(){
   const q=norm(document.getElementById("bookingSearch")?.value||"");
   const due=data.filter(x=>{
     if(x.nextDate>today()||x.status==="BOOKING NOW") return false;
-    return !q ||
-      norm(x.name).includes(q) ||
-      norm(x.customerNo).includes(q) ||
-      norm(x.mobile).includes(q);
+    return !q || norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q);
   });
   const box=document.getElementById("bookingDueList");
-  box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+  box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
@@ -374,8 +400,24 @@ function renderCustomers(){
  document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
 }
 function renderBookingNow(){
- const list=data.filter(x=>x.status==="BOOKING NOW").slice(0,15);
- document.getElementById("bookingNowList").innerHTML=list.length?`<div class="table-wrap"><table class="compact-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><span>${esc(x.otp)}</span></td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+ const list=data.filter(x=>x.status==="BOOKING NOW");
+ const total=list.reduce((s,x)=>s+Number(x.bookingAmount||0),0);
+ const box=document.getElementById("bookingNowList");
+ let html=`<div class="item"><b>एकूण BOOKING: ${list.length}</b><div class="small">TOTAL BOOKING AMOUNT: ₹${total.toFixed(2)}</div><div class="actions"><button class="btn green" onclick="deliveryAll()">🚚 DELIVERY ALL (${list.length})</button></div></div>`;
+ if(list.length){
+   html+=`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>OTP</th><th>PAYMENT</th><th>AMOUNT</th><th>RECEIVED BY</th><th>DELIVERY NOW</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.otp)}</td><td>${esc(x.bookingPaymentMethod||"-")}</td><td>₹${Number(x.bookingAmount||0).toFixed(2)}</td><td>${esc(x.bookingRecipient||"-")}</td><td><div class="compact-actions"><button class="btn green" onclick="deliveryNow(${x.id})">DELIVERY NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="deleteBookingNow(${x.id})">DELETE</button></div></td></tr>`).join("")}</tbody></table></div>`;
+ }else{
+   html+='<div class="empty">NO BOOKING NOW CUSTOMER.</div>';
+ }
+ box.innerHTML=html;
+}
+function renderPaymentReport(){
+ const active=data.filter(x=>x.status==="BOOKING NOW");
+ const sum=(recipient)=>active.filter(x=>x.bookingRecipient===recipient).reduce((s,x)=>s+Number(x.bookingAmount||0),0);
+ const later=active.filter(x=>x.bookingPaymentMethod==="PAY LATER").reduce((s,x)=>s+Number(x.bookingAmount||0),0);
+ const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent="₹"+Number(v||0).toFixed(2)};
+ set("paySharadha",sum("SHARADHA"));set("payRohidas",sum("ROHIDAS"));set("payLater",later);
+
 }
 
 document.addEventListener("input",e=>{if(e.target.matches("input[type=text],input:not([type]),input[type=tel]"))e.target.value=e.target.value.toUpperCase()});
@@ -487,6 +529,7 @@ setTimeout(updateDashboard,500);
         sellPrice:Number(d.sellPrice||0),
         totalProfit:currentProfit
       };
+      window.currentSellPrice=values.sellPrice;
       ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=values[id];});
       renderHistory(history);
       updateDashboard();
