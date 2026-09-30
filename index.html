@@ -263,7 +263,6 @@ function save(deletedCustomerId=null){
  localStorage.setItem(DATA_KEY,JSON.stringify(data));
  localStorage.setItem(HIST_KEY,JSON.stringify(history));
  renderAll();
- setTimeout(()=>{if(typeof window.updateDashboard==="function") window.updateDashboard();},0);
  syncToFirebase(deletedCustomerId);
 }
 function showTab(id,btn){
