@@ -215,7 +215,6 @@ async function loadFromFirebase(){
     const st=document.getElementById("firebaseStatus");
     if(st){st.textContent="☁️ FIREBASE CONNECTED";st.style.background="#dff3e5";st.style.color="#08752e";}
     renderAll();
-    updateDashboard();
   }catch(e){
     console.error("FIREBASE LOAD ERROR",e);
     const st=document.getElementById("firebaseStatus");
@@ -264,6 +263,7 @@ function save(deletedCustomerId=null){
  localStorage.setItem(DATA_KEY,JSON.stringify(data));
  localStorage.setItem(HIST_KEY,JSON.stringify(history));
  renderAll();
+ setTimeout(()=>{if(typeof window.updateDashboard==="function") window.updateDashboard();},0);
  syncToFirebase(deletedCustomerId);
 }
 function showTab(id,btn){
@@ -356,7 +356,7 @@ function deleteBookingNow(id){
  alert("BOOKING NOW ENTRY DELETED ✅");
 }
 
-function renderAll(){renderBooking();renderCustomers();renderBookingNow(); if(typeof updateDashboard==="function") updateDashboard();}
+function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
