@@ -357,9 +357,16 @@ function deleteBookingNow(id){
 
 function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
 function renderBooking(){
- const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
- const box=document.getElementById("bookingDueList");
- box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
+  const q=norm(document.getElementById("bookingSearch")?.value||"");
+  const due=data.filter(x=>{
+    if(x.nextDate>today()||x.status==="BOOKING NOW") return false;
+    return !q ||
+      norm(x.name).includes(q) ||
+      norm(x.customerNo).includes(q) ||
+      norm(x.mobile).includes(q);
+  });
+  const box=document.getElementById("bookingDueList");
+  box.innerHTML=due.length?`<div class="table-wrap"><table class="compact-table booking-table"><thead><tr><th>NAME</th><th>CUSTOMER NO</th><th>BOOKING NOW</th><th>EDIT</th></tr></thead><tbody>${due.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td><div class="compact-actions"><button class="btn green" onclick="bookingNow(${x.id})">BOOKING NOW</button></div></td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO BOOKING DUE.</div>';
 }
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
