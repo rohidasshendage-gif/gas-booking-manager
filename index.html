@@ -215,6 +215,7 @@ async function loadFromFirebase(){
     const st=document.getElementById("firebaseStatus");
     if(st){st.textContent="☁️ FIREBASE CONNECTED";st.style.background="#dff3e5";st.style.color="#08752e";}
     renderAll();
+    updateDashboard();
   }catch(e){
     console.error("FIREBASE LOAD ERROR",e);
     const st=document.getElementById("firebaseStatus");
@@ -355,7 +356,7 @@ function deleteBookingNow(id){
  alert("BOOKING NOW ENTRY DELETED ✅");
 }
 
-function renderAll(){renderBooking();renderCustomers();renderBookingNow()}
+function renderAll(){renderBooking();renderCustomers();renderBookingNow(); if(typeof updateDashboard==="function") updateDashboard();}
 function renderBooking(){
  const due=data.filter(x=>x.nextDate<=today()&&x.status!=="BOOKING NOW");
  const box=document.getElementById("bookingDueList");
@@ -539,12 +540,12 @@ setTimeout(updateDashboard,500);
       const d=snap.exists?(snap.data()||{}):{};
       const history=d.monthlyProfitHistory||{};
       const current=monthKey();
-      const customers=Array.isArray(window.data)?window.data.length:0;
+      const customers=Array.isArray(data)?data.length:0;
       const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
       set("dashCustomers",customers);
       set("dashFull",Number(d.stockFull||0));
       set("dashEmpty",Number(d.stockEmpty||0));
-      const h=Array.isArray(window.history)?window.history:[];
+      const h=Array.isArray(history)?history:[];
       set("dashBooking",h.filter(x=>x.type==="BOOKING NOW"&&x.date===today()).length);
       set("dashDelivery",h.filter(x=>x.type==="DELIVERY DONE"&&x.date===today()).length);
       updateProfitHighlight(Number(history[current]||0));
