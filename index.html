@@ -377,11 +377,20 @@ function saveEdit(){
 }
 function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!==id);save(id)}}
 
-function deleteBookingNow(id){
+async function deleteBookingNow(id){
  const x=data.find(a=>a.id===id);if(!x)return;
  if(!confirm("DELETE THIS BOOKING NOW ENTRY?"))return;
+
+ // BOOKING NOW moved 1 tank from FULL to EMPTY. Reverse that movement on delete.
+ const stockResult=await window.moveGasStock(+1,-1,"DELETE BOOKING");
+ if(!stockResult.ok){
+  alert(stockResult.message||"STOCK UPDATE FAILED. BOOKING NOT DELETED.");
+  return;
+ }
+
  x.status="CUSTOMER";x.bookingDate="";x.otp="";x.bookingPaymentMethod="";x.bookingRecipient="";x.bookingAmount=0;
- save();alert("BOOKING NOW ENTRY DELETED ✅");
+ x.bookingId=null;x.bookingPurchasePrice=0;x.bookingSellPrice=0;
+ save();alert("BOOKING NOW ENTRY DELETED ✅\nSTOCK RESTORED: FULL +1 / EMPTY -1");
 }
 
 function renderAll(){renderBooking();renderCustomers();renderBookingNow();renderPaymentReport()}
@@ -552,7 +561,7 @@ setTimeout(updateDashboard,500);
 
       const current=monthKey();
       const monthly={...(d.monthlyProfitHistory||{})};
-      const saleProfit=mode==="BOOKING" ? (sell-purchase) : 0;
+      const saleProfit=mode==="BOOKING" ? (sell-purchase) : (mode==="DELETE BOOKING" ? -(sell-purchase) : 0);
       monthly[current]=Number(monthly[current]||0)+saleProfit;
       const vals=calcValues({stockTotal:total,stockFull:newFull,purchasePrice:purchase});
 
