@@ -251,6 +251,7 @@ const CUSTOMERS_COL = "customers";
 const HISTORY_COL = "history";
 let cloudLoaded = false;
 let cloudBusy = false;
+let cloudSyncQueued = false;
 
 async function loadFromFirebase(){
   try{
@@ -292,26 +293,44 @@ async function loadFromFirebase(){
 }
 
 async function syncToFirebase(deletedCustomerId=null){
-  if(cloudBusy)return;
+  if(cloudBusy){
+    cloudSyncQueued=true;
+    return;
+  }
   cloudBusy=true;
   try{
-    // Firestore batch limit is 500 writes. Split into safe chunks.
-    const customerWrites = data.map(x=>({ref:db.collection(CUSTOMERS_COL).doc(String(x.id)),data:x}));
-    const historyWrites = history.slice(0,500).map(x=>({ref:db.collection(HISTORY_COL).doc(String(x.id)),data:x}));
-    if(deletedCustomerId!==null){
-      customerWrites.push({ref:db.collection(CUSTOMERS_COL).doc(String(deletedCustomerId)),delete:true});
-    }
-    const writes=[...customerWrites,...historyWrites];
-    for(let i=0;i<writes.length;i+=450){
-      const batch=db.batch();
-      writes.slice(i,i+450).forEach(w=>{
-        if(w.delete) batch.delete(w.ref); else batch.set(w.ref,w.data);
-      });
-      await batch.commit();
-    }
+    do{
+      cloudSyncQueued=false;
+
+      const customerWrites = data.map(x=>({
+        ref:db.collection(CUSTOMERS_COL).doc(String(x.id)),
+        data:x
+      }));
+      const historyWrites = history.slice(0,500).map(x=>({
+        ref:db.collection(HISTORY_COL).doc(String(x.id)),
+        data:x
+      }));
+
+      if(deletedCustomerId!==null){
+        customerWrites.push({
+          ref:db.collection(CUSTOMERS_COL).doc(String(deletedCustomerId)),
+          delete:true
+        });
+      }
+
+      const writes=[...customerWrites,...historyWrites];
+
+      for(let i=0;i<writes.length;i+=450){
+        const batch=db.batch();
+        writes.slice(i,i+450).forEach(w=>{
+          if(w.delete) batch.delete(w.ref);
+          else batch.set(w.ref,w.data);
+        });
+        await batch.commit();
+      }
+    }while(cloudSyncQueued);
   }catch(e){
-    console.error("FIREBASE SAVE ERROR",e);
-    alert("FIREBASE SAVE FAILED. FIRESTORE RULES / INTERNET CHECK KARA.");
+    console.error("Firebase sync failed:",e);
   }finally{
     cloudBusy=false;
   }
