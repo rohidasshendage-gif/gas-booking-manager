@@ -120,6 +120,14 @@ input::placeholder{text-transform:uppercase}
   .report-table th:nth-child(4),.report-table td:nth-child(4){width:20%}
 }
 
+
+/* Customer table: keep Edit/Delete buttons reachable on small screens */
+.customer-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.customer-table{min-width:620px;width:100%;table-layout:auto}
+.customer-table th,.customer-table td{white-space:nowrap}
+#editModal{z-index:9999}
+#editModal .modalbox{position:relative}
+#editModal .actions .btn{cursor:pointer}
 </style>
 </head>
 <body>
@@ -452,18 +460,33 @@ const list=data.filter(x=>x.status==="BOOKING NOW")
  alert("DELIVERY COMPLETED: "+done+" / "+list.length);
 }
 function editCustomer(id){
- const x=data.find(a=>a.id===id);if(!x)return;
- editId.value=x.id;editNo.value=x.customerNo;editName.value=x.name;editMobile.value=x.mobile||"";editCompany.value=x.company;editDate.value=x.deliveryDate||"";editOtp.value=x.otp||"";
- editModal.classList.remove("hidden");
+ const x=data.find(a=>Number(a.id)===Number(id));
+ if(!x){alert("CUSTOMER NOT FOUND. PLEASE REFRESH AND TRY AGAIN.");return;}
+ document.getElementById("editId").value=String(x.id);
+ document.getElementById("editNo").value=x.customerNo||"";
+ document.getElementById("editName").value=x.name||"";
+ document.getElementById("editMobile").value=x.mobile||"";
+ document.getElementById("editOtp").value=x.otp||"";
+ document.getElementById("editCompany").value=x.company||"INDANE";
+ document.getElementById("editDate").value=x.deliveryDate||today();
+ document.getElementById("editModal").classList.remove("hidden");
 }
-function closeEdit(){editModal.classList.add("hidden")}
+function closeEdit(){document.getElementById("editModal").classList.add("hidden")}
 function saveEdit(){
- const id=Number(editId.value),no=editNo.value.trim(),name=norm(editName.value),mobile=editMobile.value.trim(),otp=editOtp.value.trim(),company=editCompany.value,date=editDate.value;
- if(!no||!name||!date){alert("REQUIRED DETAILS MISSING.");return}
- if(otp && !/^\d{4,6}$/.test(otp)){alert("OTP 4 TO 6 DIGITS ASAVA.");return}
- const d=duplicate(no,name,mobile,id);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!");return}
- const x=data.find(a=>a.id===id);if(!x)return;
- x.customerNo=no;x.name=name;x.mobile=mobile;x.otp=otp;x.company=company;x.deliveryDate=date;x.nextDate=addDays(date,26);save();closeEdit();alert("CUSTOMER UPDATED ✅");
+ const id=Number(document.getElementById("editId").value);
+ const no=document.getElementById("editNo").value.trim();
+ const name=norm(document.getElementById("editName").value);
+ const mobile=document.getElementById("editMobile").value.trim();
+ const otp=document.getElementById("editOtp").value.trim();
+ const company=document.getElementById("editCompany").value;
+ const date=document.getElementById("editDate").value;
+ if(!no||!name||!date){alert("CUSTOMER NUMBER, NAME AND DELIVERY DATE REQUIRED.");return;}
+ if(mobile&&!/^\d{10}$/.test(mobile)){alert("MOBILE NUMBER MUST BE 10 DIGITS.");return;}
+ if(otp&&!/^\d{4,6}$/.test(otp)){alert("OTP 4 TO 6 DIGITS ASAVA.");return;}
+ const d=duplicate(no,name,mobile,id);if(d){alert("⚠️ DUPLICATE ENTRY FOUND!");return;}
+ const x=data.find(a=>Number(a.id)===id);if(!x){alert("CUSTOMER NOT FOUND. PLEASE REFRESH AND TRY AGAIN.");return;}
+ x.customerNo=no;x.name=name;x.mobile=mobile;x.otp=otp;x.company=company;x.deliveryDate=date;x.nextDate=addDays(date,26);
+ save();closeEdit();alert("CUSTOMER UPDATED ✅");
 }
 function del(id){if(confirm("DELETE THIS CUSTOMER?")){data=data.filter(x=>x.id!==id);save(id)}}
 
@@ -496,7 +519,7 @@ function renderBooking(){
 function renderCustomers(){
  const q=norm(document.getElementById("customerSearch")?.value||"");
  const list=data.filter(x=>!q||norm(x.name).includes(q)||norm(x.customerNo).includes(q)||norm(x.mobile).includes(q));
- document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap report-table-wrap"><table class="compact-table report-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
+ document.getElementById("customerList").innerHTML=list.length?`<div class="table-wrap customer-table-wrap"><table class="compact-table customer-table"><thead><tr><th>S.NO.</th><th>NAME</th><th>CUSTOMER NO</th><th>MOBILE</th><th>ACTION</th></tr></thead><tbody>${list.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.customerNo)}</td><td>${esc(x.mobile)}</td><td><div class="compact-actions"><button class="btn blue" onclick="editCustomer(${x.id})">EDIT</button><button class="btn red" onclick="del(${x.id})">DEL</button></div></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">NO CUSTOMER FOUND.</div>';
 }
 function renderBookingNow(){
  const bookingOrder=new Map(
