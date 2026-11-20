@@ -1,4 +1,4 @@
-const CACHE = "gas-booking-v2";
+const CACHE = "gas-booking-v4";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 const CDN = [
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
@@ -32,12 +32,27 @@ self.addEventListener("fetch", e => {
   const isCdn = CDN.includes(req.url);
   if (!isApp && !isCdn) return; // Firestore/API calls: SDK handles them
 
-  // cache first, update in background (next open gets the new version)
+  // app files: net asel tar nehmi navin version, net nasel tar cache madhun
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
-    const cached = await c.match(req, {ignoreSearch: true}) ||
-                   (req.mode === "navigate" ? await c.match("./index.html") : null);
-    const net = fetch(req).then(r => { if (r && (r.ok || r.type === "opaque")) c.put(req, r.clone()); return r; }).catch(() => null);
-    return cached || (await net) || new Response("Offline", {status: 503});
+    if (isApp) {
+      try {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 4000);
+        const r = await fetch(req, {cache: "no-cache", signal: ctl.signal});
+        clearTimeout(t);
+        if (r && r.ok) c.put(req, r.clone());
+        return r;
+      } catch (_) {
+        return (await c.match(req, {ignoreSearch: true})) ||
+               (req.mode === "navigate" ? await c.match("./index.html") : null) ||
+               new Response("Offline", {status: 503});
+      }
+    }
+    // Firebase scripts: cache first
+    const cached = await c.match(req);
+    if (cached) return cached;
+    try { const r = await fetch(req); c.put(req, r.clone()); return r; }
+    catch (_) { return new Response("", {status: 503}); }
   })());
 });
